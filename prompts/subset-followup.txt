@@ -1,0 +1,15 @@
+Your program is close: it passes 4 of 7 public cases in my simulator, but on some cases it emits NOTHING at all (empty output), which means the man is halting, erroring, or looping without ever reaching the send.
+
+Failing cases (input -> expected output):
+  [last-index-required] in=[4, 5000, 6000, 16687, 100, 16687] -> out=[1, 16687]
+  [near-total-sum, 20 values] -> expects a subset of 11 values summing to the target
+
+Passing: [duplicate values] in=[4, 500, 500, 1, 2, 1000] -> out=[2, 500, 500]
+
+Two things to check specifically:
+1. The "no subset sums to t" case must output exactly `0` and nothing else.
+2. The tie-break: when several subsets work, output the one whose chosen indices are
+   smallest in the original order (read the spec's exact wording again).
+
+Please give me a corrected complete .man program in one fenced code block. If the search
+strategy cannot fit the step cap for n=20, say so and propose what you would change.
