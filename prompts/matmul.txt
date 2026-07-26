@@ -1,0 +1,143 @@
+I need a program in "Littleman", a 2D esoteric language invented for the ICFP Programming Contest 2026. It is NOT a language you know - everything you need is below. The spec is verified against the real judge (I have already had two programs accepted with it), so trust it over your priors.
+
+=== LANGUAGE SPEC ===
+## The language
+
+Grid of ASCII. Rooms are rectangles of `+` `-` `|`. A little man `@` spawns inside a room
+**facing right**, executes the cell under him each tick, then steps one cell. Hitting a room
+border is a fatal `wall` error. Registers: `A` main hand, `B` off hand, `BP` backpack — all
+signed 64-bit, all starting 0. `BP` is **write-only**: you can branch on it, never read it.
+
+| | |
+|---|---|
+| `0`–`9` | `A` = digit |
+| `` `123` `` | literal; loads on the **closing** backtick. Walked backwards it reads backwards. Spaces inside are ignored |
+| `M` / `W` | `B = A` / swap `A,B` |
+| `+ - * / % N` | `A = A op B`; `/` floors and puts the **remainder in B**; `N` negates |
+| `& \| ~ { }` | and, or, xor, `A<<B`, `A>>B` (arithmetic) |
+| `> < ^ v` | set direction |
+| `X` | turn by sign(A): right if >0, left if <0, straight if 0. `A` unchanged |
+| `b m d a ] x` | `BP=A`; `BP-=1`; turn right/left if `BP>0`; `BP>>=1`; `x` turns right if low bit set else left |
+| `q` | `BP` = number of values in the nearest incoming pipe |
+| `s S` | send `A` to nearest / every outgoing pipe (blocks if full) |
+| `r R U` | receive into `A` from nearest / any incoming pipe; `U` also turns away from that side |
+| `Y` | split into two men moving perpendicular; both inherit `A,B,BP` |
+| `H` `.` space | halt; nop; nop |
+
+I/O rooms are 3×3 holding a single `I` or `O`, each with exactly one pipe.
+Input arrives one value per tick into the input pipe's source cell.
+
+## Pipes — read this twice, it cost us a whole submission
+
+A pipe **must start with an arrowhead whose backward cell is on the source room's border**,
+and **ends at the first arrowhead whose forward cell is on another room's border**.
+
+- `>>` — shortest legal pipe (2 cells, arrowheads at both ends).
+- `--->` — **NOT A PIPE.** It starts with a body glyph. The program loads clean and then every
+  test dies `no-pipe`.
+- Body glyphs must match direction (`-` horizontal, `|` vertical); every bend is an arrowhead
+  pointing the new way; the terminal arrowhead doubles as the final bend.
+
+`s`/`r`/`q` use the **nearest** pipe by Manhattan distance from the instruction to the pipe
+segment touching your room, ties broken in reading order. `R`/`U` take from any ready pipe.
+
+## Backticks pair down COLUMNS as well as along rows
+
+Within a column they pair top-to-bottom, 1st-2nd, 3rd-4th. **A non-digit between a vertical
+pair is a load error** — this killed a program that was otherwise perfect:
+
+```
+expected a digit or a space between backticks, but found 's' at (2, 2)
+```
+
+If you lay literals in a grid, either keep backtick columns identical on every row (pad tokens
+so they are symmetric, e.g. `` ` `NNN`s `` ` has backticks at offsets 1 and 5 **both** walked
+left-to-right and right-to-left), or keep only spaces/digits between vertical pairs.
+`sim.py` enforces this rule, so trust it.
+
+## Scoring — layout matters more than instruction count
+
+`score = max(width, height)² × avgTicks`, **lower is better**, and every case must pass.
+Problems marked `footprint` ignore ticks entirely.
+
+The bounding box dominates. Our Triangle went **5819 → 1500** with the *same ten instructions*,
+purely by folding a flat 23×3 line into a 7×10 snake with the I/O rooms side by side:
+
+```
++-+ +-+
+|I| |O|
++-+ +-+
+ v   ^
+ v   ^
++-----+
+|@rM*v|
+|v1W+<|
+|>W}sH|
++-----+
+```
+
+Get it **correct first**, then square it up. A correct big program beats a beautiful broken one.
+
+## Useful patterns
+
+- **No third register.** With only `A` and `B` readable, a loop that needs a constant *and* an
+  accumulator *and* a temp needs external storage — use a pipe to a helper room as memory,
+  or restructure the arithmetic. Triangle avoids a division entirely by computing
+  `(n²+n) >> 1`, parking the `1` in `B` with two `W` swaps.
+- **Pipes are FIFO queues** and hold one value per cell — a long pipe is a delay line and a
+  bounded buffer. A ring of two rooms joined by pipes both ways is a rotatable store.
+- **`BP` is a loop counter**: `b` to set, `m` to decrement, `d`/`a` to branch while positive.
+- **Encode a stack in one integer** when the alphabet is small: push = `A*k + item`,
+  pop = `%k` then `/k`. 64 bits holds 31 items at k=4.
+
+=== A WORKING EXAMPLE (accepted by the judge, 19/19 cases) ===
+Triangle: read n, output n(n+1)/2, computed as (n*n + n) >> 1 to avoid division.
+
++-+ +-+
+|I| |O|
++-+ +-+
+ v   ^
+ v   ^
++-----+
+|@rM*v|
+|v1W+<|
+|>W}sH|
++-----+
+
+Walk order is r M * + W 1 W } s H. The man enters at @ heading right, runs off the end of row 1 onto v (turn down), lands on row 2 heading down, < turns him west, and so on. The two W swaps exist only to park the constant 1 in B for the shift, because loading a literal always lands in A.
+
+=== YOUR TASK ===
+Problem: Matrix Multiply (slug matmul)
+
+Multiply two matrices.
+
+An `R×C` matrix is a 2D array of numbers with `R` rows and `C` columns.
+Matrices in this problem are *row-major* — row 0 in full, then row 1, and so on
+until row `R-1`.
+
+Each test case will provide three integers: `N`, `M`, `K`, and then two
+matrices `A` and `B`. `A` will be `N×M` and `B` will be `M×K`. You
+should multiply `A` and `B` and output `C`, an `N×K` matrix.
+
+Matrix multiplication works as follows: `C[i][j]` should be the sum of
+`A[i][t] × B[t][j]` where `t` goes from `0` to `M-1`.
+
+I/O spec: {"input": {"seq": [{"label": "N", "of": "int"}, {"label": "M", "of": "int"}, {"label": "K", "of": "int"}, {"label": "A", "note": "row-major", "of": {"count": {"*": ["N", "M"]}, "of": "int"}}, {"label": "B", "note": "row-major", "of": {"count": {"*": ["M", "K"]}, "of": "int"}}]}, "output": {"label": "C", "note": "row-major", "of": {"count": {"*": ["N", "K"]}, "of": "int"}}, "definitions": {"A": "N\u00d7M matrix \u2014 row-major", "B": "M\u00d7K matrix \u2014 row-major", "C": "N\u00d7K matrix \u2014 row-major"}, "constraints": ["`2 \u2264 N, M, K \u2264 16` \u2014 dimensions, vary per test case", "`-99 \u2264 a, b \u2264 99` \u2014 entries of A and B"]}
+Scoring: footprint-tick   (score = max(width,height)^2 * avgTicks, lower is better; 'footprint' ignores ticks)
+Constraints: `2 ≤ N, M, K ≤ 16` — dimensions, vary per test case; `-99 ≤ a, b ≤ 99` — entries of A and B
+
+Public test cases (input -> expected output, as integers):
+  [2x2 warm up] in=['2', '2', '2', '1', '2', '3', '4', '5', '6', '7', '8'] -> out=['19', '22', '43', '50']
+  [non-square 2x3x2] in=['2', '3', '2', '1', '0', '-1', '2', '3', '1', '4', '5', '6', '7', '8', '9'] -> out=['-4', '-4', '34', '40']
+  [identity] in=['4', '4', '4', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16', '1', '0', '0', '0', '0', '1', '0', '0', '0', '0', '1', '0', '0', '0', '0', '1'] -> out=['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16']
+  [16x16x16 full size] in=['16', '16', '16', '-72', '19', '-79', '-96', '68', '-17', '4', '61', '-53', '3', '-53', '-10', '53', '-54', '-29', '-26', '76', '57', '-80', '64', '70', '-12', '-22', '-82', '-34', '93', '68', '-34', '9', '30', '-41', '-59', '88', '-13', '-11', '-43', '2', '17', '-2', '-58', '20', '-4', '89', '-19', '58', '-68', '98', '-50', '99', '-84', '-16', '22', '-33', '35', '-74', '-29', '96', '7', '-1', '46', '-77', '95', '-54', '-30', '51', '-81', '-79', '66', '57', '44', '92', '97', '29', '8', '-82', '26', '-41', '-44', '-90', '-70', '-22', '51', '62', '94', '30', '70', '-76', '38', '-92', '50', '61', '-69', '57', '-66', '-13', '16', '-96', '-66', '-92', '-98', '61', '-14', '63', '-4', '32', '-26', '29', '-1', '24', '19', '-47', '-2', '19', '-52', '23', '-31', '-38', '56', '-93', '24', '80', '-33', '64', '71', '51', '43', '-60', '-45', '-7', '92', '70', '70', '-40', '-75', '-76', '-20', '28', '10', '-64', '71', '-34', '14', '90', '-65', '-35', '82', '56', '10', '-30', '-8', '-38', '47', '36', '6', '68', '34', '-93', '91', '-49', '19', '-64', '68', '-25', '-56', '-61', '1', '52', '-22', '-47', '-34', '-8', '50', '-50', '57', '0', '-34', '76', '-25', '-30', '-50', '-73', '-73', '-42', '-35', '6', '-77', '-96', '20', '-89', '95', '92', '-64', '-96', '4', '71', '50', '-45', '-20', '47', '-30', '37', '3', '-68', '68', '-78', '40', '7', '-35', '-82', '-49', '-1', '36', '45', '-19', '67', '-50', '-62', '-78', '58', '-56', '68', '-14', '7', '-2', '82', '-65', '80', '-87', '-53', '-96', '47', '13', '83', '29', '-15', '-48', '-55', '96', '-26', '-75', '-46', '20', '-51', '81', '-38', '-81', '-14', '-50', '-74', '-52', '22', '46',
+
+=== WHAT I WANT BACK ===
+A complete .man program that passes every case above, as a single fenced code block, with exact spacing preserved (every line padded to the same width). Before the code, briefly explain your register/state plan: with only A and B readable (BP is write-only and branch-only), most algorithms need external storage, and the ONLY memory primitive is a pipe used as a FIFO or a rotatable ring between two rooms.
+
+Be rigorous about these three, which are the usual causes of failure:
+  * a pipe must START with an arrowhead whose backward cell touches the source room border, and END at an arrowhead whose forward cell touches another room border. '--->' is not a pipe at all.
+  * backticks pair down COLUMNS as well as along rows; a non-digit between a vertical pair is a load error.
+  * the man dies instantly if he walks into a room border.
+
+If you are not confident the program is correct, say which part you are unsure about rather than presenting it as finished.

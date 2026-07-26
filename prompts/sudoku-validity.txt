@@ -1,0 +1,162 @@
+I need a program in "Littleman", a 2D esoteric language invented for the ICFP Programming Contest 2026. It is NOT a language you know - everything you need is below. The spec is verified against the real judge (I have already had two programs accepted with it), so trust it over your priors.
+
+=== LANGUAGE SPEC ===
+## The language
+
+Grid of ASCII. Rooms are rectangles of `+` `-` `|`. A little man `@` spawns inside a room
+**facing right**, executes the cell under him each tick, then steps one cell. Hitting a room
+border is a fatal `wall` error. Registers: `A` main hand, `B` off hand, `BP` backpack — all
+signed 64-bit, all starting 0. `BP` is **write-only**: you can branch on it, never read it.
+
+| | |
+|---|---|
+| `0`–`9` | `A` = digit |
+| `` `123` `` | literal; loads on the **closing** backtick. Walked backwards it reads backwards. Spaces inside are ignored |
+| `M` / `W` | `B = A` / swap `A,B` |
+| `+ - * / % N` | `A = A op B`; `/` floors and puts the **remainder in B**; `N` negates |
+| `& \| ~ { }` | and, or, xor, `A<<B`, `A>>B` (arithmetic) |
+| `> < ^ v` | set direction |
+| `X` | turn by sign(A): right if >0, left if <0, straight if 0. `A` unchanged |
+| `b m d a ] x` | `BP=A`; `BP-=1`; turn right/left if `BP>0`; `BP>>=1`; `x` turns right if low bit set else left |
+| `q` | `BP` = number of values in the nearest incoming pipe |
+| `s S` | send `A` to nearest / every outgoing pipe (blocks if full) |
+| `r R U` | receive into `A` from nearest / any incoming pipe; `U` also turns away from that side |
+| `Y` | split into two men moving perpendicular; both inherit `A,B,BP` |
+| `H` `.` space | halt; nop; nop |
+
+I/O rooms are 3×3 holding a single `I` or `O`, each with exactly one pipe.
+Input arrives one value per tick into the input pipe's source cell.
+
+## Pipes — read this twice, it cost us a whole submission
+
+A pipe **must start with an arrowhead whose backward cell is on the source room's border**,
+and **ends at the first arrowhead whose forward cell is on another room's border**.
+
+- `>>` — shortest legal pipe (2 cells, arrowheads at both ends).
+- `--->` — **NOT A PIPE.** It starts with a body glyph. The program loads clean and then every
+  test dies `no-pipe`.
+- Body glyphs must match direction (`-` horizontal, `|` vertical); every bend is an arrowhead
+  pointing the new way; the terminal arrowhead doubles as the final bend.
+
+`s`/`r`/`q` use the **nearest** pipe by Manhattan distance from the instruction to the pipe
+segment touching your room, ties broken in reading order. `R`/`U` take from any ready pipe.
+
+## Backticks pair down COLUMNS as well as along rows
+
+Within a column they pair top-to-bottom, 1st-2nd, 3rd-4th. **A non-digit between a vertical
+pair is a load error** — this killed a program that was otherwise perfect:
+
+```
+expected a digit or a space between backticks, but found 's' at (2, 2)
+```
+
+If you lay literals in a grid, either keep backtick columns identical on every row (pad tokens
+so they are symmetric, e.g. `` ` `NNN`s `` ` has backticks at offsets 1 and 5 **both** walked
+left-to-right and right-to-left), or keep only spaces/digits between vertical pairs.
+`sim.py` enforces this rule, so trust it.
+
+## Scoring — layout matters more than instruction count
+
+`score = max(width, height)² × avgTicks`, **lower is better**, and every case must pass.
+Problems marked `footprint` ignore ticks entirely.
+
+The bounding box dominates. Our Triangle went **5819 → 1500** with the *same ten instructions*,
+purely by folding a flat 23×3 line into a 7×10 snake with the I/O rooms side by side:
+
+```
++-+ +-+
+|I| |O|
++-+ +-+
+ v   ^
+ v   ^
++-----+
+|@rM*v|
+|v1W+<|
+|>W}sH|
++-----+
+```
+
+Get it **correct first**, then square it up. A correct big program beats a beautiful broken one.
+
+## Useful patterns
+
+- **No third register.** With only `A` and `B` readable, a loop that needs a constant *and* an
+  accumulator *and* a temp needs external storage — use a pipe to a helper room as memory,
+  or restructure the arithmetic. Triangle avoids a division entirely by computing
+  `(n²+n) >> 1`, parking the `1` in `B` with two `W` swaps.
+- **Pipes are FIFO queues** and hold one value per cell — a long pipe is a delay line and a
+  bounded buffer. A ring of two rooms joined by pipes both ways is a rotatable store.
+- **`BP` is a loop counter**: `b` to set, `m` to decrement, `d`/`a` to branch while positive.
+- **Encode a stack in one integer** when the alphabet is small: push = `A*k + item`,
+  pop = `%k` then `/k`. 64 bits holds 31 items at k=4.
+
+=== A WORKING EXAMPLE (accepted by the judge, 19/19 cases) ===
+Triangle: read n, output n(n+1)/2, computed as (n*n + n) >> 1 to avoid division.
+
++-+ +-+
+|I| |O|
++-+ +-+
+ v   ^
+ v   ^
++-----+
+|@rM*v|
+|v1W+<|
+|>W}sH|
++-----+
+
+Walk order is r M * + W 1 W } s H. The man enters at @ heading right, runs off the end of row 1 onto v (turn down), lands on row 2 heading down, < turns him west, and so on. The two W swaps exist only to park the constant 1 in B for the shift, because loading a literal always lands in A.
+
+=== YOUR TASK ===
+Problem: Sudoku Auditor (slug sudoku-validity)
+
+Validate a Sudoku solution.
+
+A Sudoku grid is a 9x9 square of numbers. In a correctly solved grid, each row,
+each column, and each of the nine 3x3 boxes (rows `0-2/3-5/6-8` crossed with
+columns `0-2/3-5/6-8`) in the grid contains exactly the digits 1-9 without
+repetition.
+
+Each [round](/grading#round-based) delivers three integers `r c v`
+describing the contents of one cell. `r` and `c` are the 0-indexed row and
+column of the cell, and `v` is the value (between 1 and 9) placed at that cell.
+
+After reading each cell, output `1` if the grid is still valid (that is, if no
+row, column, or box in the grid contains a duplicate number) and `0` if the
+grid is no longer valid.
+
+No cell is delivered more than once. Your program only needs to output `0`
+once: the test case ends as soon as an invalid value is delivered.
+
+I/O spec: {"input": {"seq": [{"of": "int", "label": "r", "note": "row, 0-indexed, 0-8"}, {"of": "int", "label": "c", "note": "column, 0-indexed, 0-8"}, {"of": "int", "label": "v", "note": "value placed at (r, c), 1-9"}]}, "output": {"of": "int", "label": "verdict", "note": "1 if consistent so far, else 0"}, "constraints": ["`0 \u2264 r, c \u2264 8`", "`1 \u2264 v \u2264 9`", "up to 81 rounds per test case \u2014 no cell is delivered more than once"]}
+Scoring: footprint-tick   (score = max(width,height)^2 * avgTicks, lower is better; 'footprint' ignores ticks)
+Constraints: `0 ≤ r, c ≤ 8`; `1 ≤ v ≤ 9`; up to 81 rounds per test case — no cell is delivered more than once
+
+Public test cases (input -> expected output, as integers):
+  [a valid grid] in=['4', '5', '4'] -> out=['1']
+  [a valid grid] in=['2', '5', '5'] -> out=['1']
+  [a valid grid] in=['0', '2', '8'] -> out=['1']
+  [early row violation] in=['2', '3', '1'] -> out=['1']
+  [early row violation] in=['2', '8', '9'] -> out=['1']
+  [early row violation] in=['2', '2', '1'] -> out=['0']
+  [late box violation] in=['0', '7', '4'] -> out=['1']
+  [late box violation] in=['3', '4', '4'] -> out=['1']
+  [late box violation] in=['3', '5', '6'] -> out=['1']
+  [checksum-tie trap] in=['3', '0', '1'] -> out=['1']
+  [checksum-tie trap] in=['3', '3', '6'] -> out=['1']
+  [checksum-tie trap] in=['3', '6', '8'] -> out=['1']
+  [col violation] in=['3', '1', '3'] -> out=['1']
+  [col violation] in=['8', '8', '1'] -> out=['1']
+  [col violation] in=['7', '6', '7'] -> out=['1']
+  [violation on final cell] in=['4', '7', '5'] -> out=['1']
+  [violation on final cell] in=['8', '0', '6'] -> out=['1']
+  [violation on final cell] in=['8', '1', '1'] -> out=['1']
+
+=== WHAT I WANT BACK ===
+A complete .man program that passes every case above, as a single fenced code block, with exact spacing preserved (every line padded to the same width). Before the code, briefly explain your register/state plan: with only A and B readable (BP is write-only and branch-only), most algorithms need external storage, and the ONLY memory primitive is a pipe used as a FIFO or a rotatable ring between two rooms.
+
+Be rigorous about these three, which are the usual causes of failure:
+  * a pipe must START with an arrowhead whose backward cell touches the source room border, and END at an arrowhead whose forward cell touches another room border. '--->' is not a pipe at all.
+  * backticks pair down COLUMNS as well as along rows; a non-digit between a vertical pair is a load error.
+  * the man dies instantly if he walks into a room border.
+
+If you are not confident the program is correct, say which part you are unsure about rather than presenting it as finished.

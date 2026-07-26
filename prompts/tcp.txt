@@ -1,0 +1,166 @@
+I need a program in "Littleman", a 2D esoteric language invented for the ICFP Programming Contest 2026. It is NOT a language you know - everything you need is below. The spec is verified against the real judge (I have already had two programs accepted with it), so trust it over your priors.
+
+=== LANGUAGE SPEC ===
+## The language
+
+Grid of ASCII. Rooms are rectangles of `+` `-` `|`. A little man `@` spawns inside a room
+**facing right**, executes the cell under him each tick, then steps one cell. Hitting a room
+border is a fatal `wall` error. Registers: `A` main hand, `B` off hand, `BP` backpack — all
+signed 64-bit, all starting 0. `BP` is **write-only**: you can branch on it, never read it.
+
+| | |
+|---|---|
+| `0`–`9` | `A` = digit |
+| `` `123` `` | literal; loads on the **closing** backtick. Walked backwards it reads backwards. Spaces inside are ignored |
+| `M` / `W` | `B = A` / swap `A,B` |
+| `+ - * / % N` | `A = A op B`; `/` floors and puts the **remainder in B**; `N` negates |
+| `& \| ~ { }` | and, or, xor, `A<<B`, `A>>B` (arithmetic) |
+| `> < ^ v` | set direction |
+| `X` | turn by sign(A): right if >0, left if <0, straight if 0. `A` unchanged |
+| `b m d a ] x` | `BP=A`; `BP-=1`; turn right/left if `BP>0`; `BP>>=1`; `x` turns right if low bit set else left |
+| `q` | `BP` = number of values in the nearest incoming pipe |
+| `s S` | send `A` to nearest / every outgoing pipe (blocks if full) |
+| `r R U` | receive into `A` from nearest / any incoming pipe; `U` also turns away from that side |
+| `Y` | split into two men moving perpendicular; both inherit `A,B,BP` |
+| `H` `.` space | halt; nop; nop |
+
+I/O rooms are 3×3 holding a single `I` or `O`, each with exactly one pipe.
+Input arrives one value per tick into the input pipe's source cell.
+
+## Pipes — read this twice, it cost us a whole submission
+
+A pipe **must start with an arrowhead whose backward cell is on the source room's border**,
+and **ends at the first arrowhead whose forward cell is on another room's border**.
+
+- `>>` — shortest legal pipe (2 cells, arrowheads at both ends).
+- `--->` — **NOT A PIPE.** It starts with a body glyph. The program loads clean and then every
+  test dies `no-pipe`.
+- Body glyphs must match direction (`-` horizontal, `|` vertical); every bend is an arrowhead
+  pointing the new way; the terminal arrowhead doubles as the final bend.
+
+`s`/`r`/`q` use the **nearest** pipe by Manhattan distance from the instruction to the pipe
+segment touching your room, ties broken in reading order. `R`/`U` take from any ready pipe.
+
+## Backticks pair down COLUMNS as well as along rows
+
+Within a column they pair top-to-bottom, 1st-2nd, 3rd-4th. **A non-digit between a vertical
+pair is a load error** — this killed a program that was otherwise perfect:
+
+```
+expected a digit or a space between backticks, but found 's' at (2, 2)
+```
+
+If you lay literals in a grid, either keep backtick columns identical on every row (pad tokens
+so they are symmetric, e.g. `` ` `NNN`s `` ` has backticks at offsets 1 and 5 **both** walked
+left-to-right and right-to-left), or keep only spaces/digits between vertical pairs.
+`sim.py` enforces this rule, so trust it.
+
+## Scoring — layout matters more than instruction count
+
+`score = max(width, height)² × avgTicks`, **lower is better**, and every case must pass.
+Problems marked `footprint` ignore ticks entirely.
+
+The bounding box dominates. Our Triangle went **5819 → 1500** with the *same ten instructions*,
+purely by folding a flat 23×3 line into a 7×10 snake with the I/O rooms side by side:
+
+```
++-+ +-+
+|I| |O|
++-+ +-+
+ v   ^
+ v   ^
++-----+
+|@rM*v|
+|v1W+<|
+|>W}sH|
++-----+
+```
+
+Get it **correct first**, then square it up. A correct big program beats a beautiful broken one.
+
+## Useful patterns
+
+- **No third register.** With only `A` and `B` readable, a loop that needs a constant *and* an
+  accumulator *and* a temp needs external storage — use a pipe to a helper room as memory,
+  or restructure the arithmetic. Triangle avoids a division entirely by computing
+  `(n²+n) >> 1`, parking the `1` in `B` with two `W` swaps.
+- **Pipes are FIFO queues** and hold one value per cell — a long pipe is a delay line and a
+  bounded buffer. A ring of two rooms joined by pipes both ways is a rotatable store.
+- **`BP` is a loop counter**: `b` to set, `m` to decrement, `d`/`a` to branch while positive.
+- **Encode a stack in one integer** when the alphabet is small: push = `A*k + item`,
+  pop = `%k` then `/k`. 64 bits holds 31 items at k=4.
+
+=== A WORKING EXAMPLE (accepted by the judge, 19/19 cases) ===
+Triangle: read n, output n(n+1)/2, computed as (n*n + n) >> 1 to avoid division.
+
++-+ +-+
+|I| |O|
++-+ +-+
+ v   ^
+ v   ^
++-----+
+|@rM*v|
+|v1W+<|
+|>W}sH|
++-----+
+
+Walk order is r M * + W 1 W } s H. The man enters at @ heading right, runs off the end of row 1 onto v (turn down), lands on row 2 heading down, < turns him west, and so on. The two W swaps exist only to park the constant 1 in B for the shift, because loading a literal always lands in A.
+
+=== YOUR TASK ===
+Problem: Packet Reassembly (slug tcp)
+
+Reassemble a stream of packets.
+
+A test case carries one stream of `n` packets, numbered `seq = 0 .. n-1`,
+each with a value `val`. [Round](/grading#round-based) 1 delivers `n`,
+then the first packet; every later round delivers one more packet — `seq
+val` — and the packets arrive in some scrambled order.
+
+Output the packets in the correct order, as early as possible. For example:
+* Your program begins. You are waiting for packet `0`
+* Packet `(2, 30)` arrives. No output - you're waiting for `0`
+* Packet `(0, 10)` arrives. Output `10` because `0` arrived. You are waiting for `1`
+* Packet `(1, 20)` arrives. Output `20 30` because `1` arrived and you already know the value for `2`
+* Packet `(3, 40)` arrives. Output `40` because you are now waiting for `3`.
+
+At any moment, you are waiting for the lowest-numbered packet you haven't seen
+yet. When it arrives, you should output its value (and so on, until you hit a
+gap). As you can see, a single arrival can produce no output, one value of
+output, or several values of output at once. You won't see the next packet
+until you've output everything the current one unlocks.
+
+**Maximum delay:** If a packet arrives with a `seq` that is 16 or more above
+the `seq` you are waiting for, output `-1` and stop. For example, if the first
+packet you receive is `(16, 1)` you should output `-1` and stop.
+
+I/O spec: {"input": {"of": {"repeat": "int"}, "note": "Round 1 carries `n` (the stream length), then the first packet as `seq val`; every later round carries one packet: `seq val`."}, "output": {"of": {"repeat": "int"}, "note": "The values this round's packet drained, in `seq` order (possibly none); `-1` means the stream is lost, and is always the test case's final output."}, "constraints": ["`1 \u2264 n \u2264 48` \u2014 stream length", "`0 \u2264 seq < n`, distinct within a test case", "`1 \u2264 val \u2264 999`"]}
+Scoring: footprint-tick   (score = max(width,height)^2 * avgTicks, lower is better; 'footprint' ignores ticks)
+Constraints: `1 ≤ n ≤ 48` — stream length; `0 ≤ seq < n`, distinct within a test case; `1 ≤ val ≤ 999`
+
+Public test cases (input -> expected output, as integers):
+  [in-order stream] in=['6', '0', '100'] -> out=['100']
+  [in-order stream] in=['1', '101'] -> out=['101']
+  [in-order stream] in=['2', '102'] -> out=['102']
+  [single max-displacement swap] in=['17', '15', '900'] -> out=[]
+  [single max-displacement swap] in=['0', '100'] -> out=['100']
+  [single max-displacement swap] in=['1', '101'] -> out=['101']
+  [drain burst] in=['16', '15', '215'] -> out=[]
+  [drain burst] in=['14', '214'] -> out=[]
+  [drain burst] in=['13', '213'] -> out=[]
+  [loss case] in=['20', '1', '301'] -> out=[]
+  [loss case] in=['2', '302'] -> out=[]
+  [loss case] in=['3', '303'] -> out=[]
+  [shortest stream] in=['1', '0', '42'] -> out=['42']
+  [block-reversed n=32] in=['32', '15', '337'] -> out=[]
+  [block-reversed n=32] in=['14', '423'] -> out=[]
+  [block-reversed n=32] in=['13', '400'] -> out=[]
+
+=== WHAT I WANT BACK ===
+A complete .man program that passes every case above, as a single fenced code block, with exact spacing preserved (every line padded to the same width). Before the code, briefly explain your register/state plan: with only A and B readable (BP is write-only and branch-only), most algorithms need external storage, and the ONLY memory primitive is a pipe used as a FIFO or a rotatable ring between two rooms.
+
+Be rigorous about these three, which are the usual causes of failure:
+  * a pipe must START with an arrowhead whose backward cell touches the source room border, and END at an arrowhead whose forward cell touches another room border. '--->' is not a pipe at all.
+  * backticks pair down COLUMNS as well as along rows; a non-digit between a vertical pair is a load error.
+  * the man dies instantly if he walks into a room border.
+
+If you are not confident the program is correct, say which part you are unsure about rather than presenting it as finished.

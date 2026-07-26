@@ -1,0 +1,165 @@
+I need a program in "Littleman", a 2D esoteric language invented for the ICFP Programming Contest 2026. It is NOT a language you know - everything you need is below. The spec is verified against the real judge (I have already had two programs accepted with it), so trust it over your priors.
+
+=== LANGUAGE SPEC ===
+## The language
+
+Grid of ASCII. Rooms are rectangles of `+` `-` `|`. A little man `@` spawns inside a room
+**facing right**, executes the cell under him each tick, then steps one cell. Hitting a room
+border is a fatal `wall` error. Registers: `A` main hand, `B` off hand, `BP` backpack — all
+signed 64-bit, all starting 0. `BP` is **write-only**: you can branch on it, never read it.
+
+| | |
+|---|---|
+| `0`–`9` | `A` = digit |
+| `` `123` `` | literal; loads on the **closing** backtick. Walked backwards it reads backwards. Spaces inside are ignored |
+| `M` / `W` | `B = A` / swap `A,B` |
+| `+ - * / % N` | `A = A op B`; `/` floors and puts the **remainder in B**; `N` negates |
+| `& \| ~ { }` | and, or, xor, `A<<B`, `A>>B` (arithmetic) |
+| `> < ^ v` | set direction |
+| `X` | turn by sign(A): right if >0, left if <0, straight if 0. `A` unchanged |
+| `b m d a ] x` | `BP=A`; `BP-=1`; turn right/left if `BP>0`; `BP>>=1`; `x` turns right if low bit set else left |
+| `q` | `BP` = number of values in the nearest incoming pipe |
+| `s S` | send `A` to nearest / every outgoing pipe (blocks if full) |
+| `r R U` | receive into `A` from nearest / any incoming pipe; `U` also turns away from that side |
+| `Y` | split into two men moving perpendicular; both inherit `A,B,BP` |
+| `H` `.` space | halt; nop; nop |
+
+I/O rooms are 3×3 holding a single `I` or `O`, each with exactly one pipe.
+Input arrives one value per tick into the input pipe's source cell.
+
+## Pipes — read this twice, it cost us a whole submission
+
+A pipe **must start with an arrowhead whose backward cell is on the source room's border**,
+and **ends at the first arrowhead whose forward cell is on another room's border**.
+
+- `>>` — shortest legal pipe (2 cells, arrowheads at both ends).
+- `--->` — **NOT A PIPE.** It starts with a body glyph. The program loads clean and then every
+  test dies `no-pipe`.
+- Body glyphs must match direction (`-` horizontal, `|` vertical); every bend is an arrowhead
+  pointing the new way; the terminal arrowhead doubles as the final bend.
+
+`s`/`r`/`q` use the **nearest** pipe by Manhattan distance from the instruction to the pipe
+segment touching your room, ties broken in reading order. `R`/`U` take from any ready pipe.
+
+## Backticks pair down COLUMNS as well as along rows
+
+Within a column they pair top-to-bottom, 1st-2nd, 3rd-4th. **A non-digit between a vertical
+pair is a load error** — this killed a program that was otherwise perfect:
+
+```
+expected a digit or a space between backticks, but found 's' at (2, 2)
+```
+
+If you lay literals in a grid, either keep backtick columns identical on every row (pad tokens
+so they are symmetric, e.g. `` ` `NNN`s `` ` has backticks at offsets 1 and 5 **both** walked
+left-to-right and right-to-left), or keep only spaces/digits between vertical pairs.
+`sim.py` enforces this rule, so trust it.
+
+## Scoring — layout matters more than instruction count
+
+`score = max(width, height)² × avgTicks`, **lower is better**, and every case must pass.
+Problems marked `footprint` ignore ticks entirely.
+
+The bounding box dominates. Our Triangle went **5819 → 1500** with the *same ten instructions*,
+purely by folding a flat 23×3 line into a 7×10 snake with the I/O rooms side by side:
+
+```
++-+ +-+
+|I| |O|
++-+ +-+
+ v   ^
+ v   ^
++-----+
+|@rM*v|
+|v1W+<|
+|>W}sH|
++-----+
+```
+
+Get it **correct first**, then square it up. A correct big program beats a beautiful broken one.
+
+## Useful patterns
+
+- **No third register.** With only `A` and `B` readable, a loop that needs a constant *and* an
+  accumulator *and* a temp needs external storage — use a pipe to a helper room as memory,
+  or restructure the arithmetic. Triangle avoids a division entirely by computing
+  `(n²+n) >> 1`, parking the `1` in `B` with two `W` swaps.
+- **Pipes are FIFO queues** and hold one value per cell — a long pipe is a delay line and a
+  bounded buffer. A ring of two rooms joined by pipes both ways is a rotatable store.
+- **`BP` is a loop counter**: `b` to set, `m` to decrement, `d`/`a` to branch while positive.
+- **Encode a stack in one integer** when the alphabet is small: push = `A*k + item`,
+  pop = `%k` then `/k`. 64 bits holds 31 items at k=4.
+
+=== A WORKING EXAMPLE (accepted by the judge, 19/19 cases) ===
+Triangle: read n, output n(n+1)/2, computed as (n*n + n) >> 1 to avoid division.
+
++-+ +-+
+|I| |O|
++-+ +-+
+ v   ^
+ v   ^
++-----+
+|@rM*v|
+|v1W+<|
+|>W}sH|
++-----+
+
+Walk order is r M * + W 1 W } s H. The man enters at @ heading right, runs off the end of row 1 onto v (turn down), lands on row 2 heading down, < turns him west, and so on. The two W swaps exist only to park the constant 1 in B for the shift, because loading a literal always lands in A.
+
+=== YOUR TASK ===
+Problem: Brackets (slug brackets)
+
+Read a string of bracket characters and report whether it is balanced.
+
+Each input is one length-prefixed string: a count `n`, then `n` bytes, each
+the decimal [ASCII](/grading#ascii) code of one character drawn from
+`( ) [ ] { }`.
+
+A string is **balanced** if every opener `(` `[` `{` is matched by a closer
+`)` `]` `}` of the same type. Bracket pairs may only be nested or
+concatenated, never interleaved — e.g., `[()]` and `[]()` are valid but `[{]}`
+is not. The empty string is balanced.
+
+Formal definition of balanced strings (in [BNF](https://en.wikipedia.org/wiki/Backus%E2%80%93Naur_form)):
+
+```
+s := ε
+   | ( s )
+   | [ s ]
+   | { s }
+   | s s
+```
+
+Output one integer:
+
+- `0` if the string is balanced.
+- Otherwise, the **1-based position** of the first offending character: the
+  first closer that doesn't match the most recently opened, still-unclosed
+  opener (or that appears with nothing open), or `n + 1` if the string ends
+  with openers still unclosed.
+
+In `([)]` the `)` at position 3 is the first offending character — the most recently opened
+bracket there is `[`, not `(`. In `([` nothing offends inside the string,
+but both openers are left unclosed, so the answer is `n + 1 = 3`.
+
+I/O spec: {"input": {"lengthPrefixed": {"of": "ascii", "label": "brackets", "note": "the string to check"}}, "output": {"of": "int", "label": "result"}, "constraints": ["`0 \u2264 n \u2264 64` \u2014 string length", "each character is one of `(` `)` `[` `]` `{` `}`", "nesting depth `\u2264 32`"]}
+Scoring: footprint-tick   (score = max(width,height)^2 * avgTicks, lower is better; 'footprint' ignores ticks)
+Constraints: `0 ≤ n ≤ 64` — string length; each character is one of `(` `)` `[` `]` `{` `}`; nesting depth `≤ 32`
+
+Public test cases (input -> expected output, as integers):
+  [balanced simple] in=['6', '40', '41', '91', '93', '123', '125'] -> out=['0']
+  [empty string] in=['0'] -> out=['0']
+  [wrong-type close] in=['2', '40', '93'] -> out=['2']
+  [close-with-nothing-open] in=['1', '41'] -> out=['1']
+  [unclosed openers] in=['3', '40', '91', '123'] -> out=['4']
+  [deep nesting] in=['10', '40', '40', '40', '40', '40', '41', '41', '41', '41', '41'] -> out=['0']
+
+=== WHAT I WANT BACK ===
+A complete .man program that passes every case above, as a single fenced code block, with exact spacing preserved (every line padded to the same width). Before the code, briefly explain your register/state plan: with only A and B readable (BP is write-only and branch-only), most algorithms need external storage, and the ONLY memory primitive is a pipe used as a FIFO or a rotatable ring between two rooms.
+
+Be rigorous about these three, which are the usual causes of failure:
+  * a pipe must START with an arrowhead whose backward cell touches the source room border, and END at an arrowhead whose forward cell touches another room border. '--->' is not a pipe at all.
+  * backticks pair down COLUMNS as well as along rows; a non-digit between a vertical pair is a load error.
+  * the man dies instantly if he walks into a room border.
+
+If you are not confident the program is correct, say which part you are unsure about rather than presenting it as finished.
