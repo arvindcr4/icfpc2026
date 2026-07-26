@@ -90,6 +90,22 @@ Get it **correct first**, then square it up. A correct big program beats a beaut
 - **Encode a stack in one integer** when the alphabet is small: push = `A*k + item`,
   pop = `%k` then `/k`. 64 bits holds 31 items at k=4.
 
+## The LM-75 display (needed only for display problems)
+
+A display is a special room drawn with `+` corners, `:` vertical walls, `=` horizontal walls.
+Max interior 64x64. It is driven entirely by which SIDE a pipe attaches to:
+
+* **Top pipe = ADDR.** Write `row*width + column` to move the cursor. Out-of-range is an error.
+* **Left pipe = DATA.** Write a colour 0..15 to paint the pixel at the cursor, then the cursor
+  advances (next column, else next row, else back to top-left). Any other value is an error.
+* **Bottom pipe = SWAP.** Write `0` to copy next->current, clear next and reset the cursor;
+  write `1` to copy next->current but keep the cursor and next. Any other value is an error.
+
+Attaching two pipes to one side, a pipe to the right side, or a pipe to a corner is a load error.
+Within a tick the display processes ADDR, then DATA, then SWAP. Cursor starts at 0,0; both
+buffers start colour 0 (black).
+
+
 === A WORKING EXAMPLE (accepted 19/19) ===
 Triangle: read n, output n(n+1)/2 as (n*n + n) >> 1.
 
@@ -113,29 +129,45 @@ Packet Reassembly 20/20, Sudoku Auditor 20/20. So the language is expressive eno
 the difficulty is bookkeeping, not missing primitives.
 
 === YOUR TASK ===
-Problem: Matrix Multiply (slug matmul)
+Problem: Plotter (slug plotter)
 
-Multiply two matrices.
+Graph line segments on a display.
 
-An `R×C` matrix is a 2D array of numbers with `R` rows and `C` columns.
-Matrices in this problem are *row-major* — row 0 in full, then row 1, and so on
-until row `R-1`.
+A line segment is composed of two coordinate pairs `x0 y0` and `x1 y1` that define
+its start and end points.
 
-Each test case will provide three integers: `N`, `M`, `K`, and then two
-matrices `A` and `B`. `A` will be `N×M` and `B` will be `M×K`. You
-should multiply `A` and `B` and output `C`, an `N×K` matrix.
+Each [round](/grading#round-based) supplies one line segment. Draw the segment
+on the [display](/grading#displays) in **bright white (color 15)**; every other pixel stays black.
+Commit the segment
+only when it is finished. Lines do not persist between rounds.
 
-Matrix multiplication works as follows: `C[i][j]` should be the sum of
-`A[i][t] × B[t][j]` where `t` goes from `0` to `M-1`.
+Your line must consist of *exactly* the pixels produced by Bresenham's
+line drawing algorithm (in its symmetric error form). In pseudocode:
 
-I/O spec: {"input": {"seq": [{"label": "N", "of": "int"}, {"label": "M", "of": "int"}, {"label": "K", "of": "int"}, {"label": "A", "note": "row-major", "of": {"count": {"*": ["N", "M"]}, "of": "int"}}, {"label": "B", "note": "row-major", "of": {"count": {"*": ["M", "K"]}, "of": "int"}}]}, "output": {"label": "C", "note": "row-major", "of": {"count": {"*": ["N", "K"]}, "of": "int"}}, "definitions": {"A": "N\u00d7M matrix \u2014 row-major", "B": "M\u00d7K matrix \u2014 row-major", "C": "N\u00d7K matrix \u2014 row-major"}, "constraints": ["`2 \u2264 N, M, K \u2264 16` \u2014 dimensions, vary per test case"
+```
+dx = abs(x1 - x0);  sx = (x0 < x1) ? 1 : -1
+dy = -abs(y1 - y0); sy = (y0 < y1) ? 1 : -1
+err = dx + dy
+loop forever:
+    plot(x0, y0)
+    if x0 == x1 and y0 == y1: stop
+    e2 = 2 * err
+    if e2 >= dy: err = err + dy; x0 = x0 + sx
+    if e2 <= dx: err = err + dx; y0 = y0 + sy
+```
+
+The algorithm is direction-sensitive: A→B may select different pixels than B→A,
+so draw from `(x0, y0)` to `(x1, y1)` as given.
+
+I/O spec: {"input": {"seq": [{"of": "int", "label": "x0"}, {"of": "int", "label": "y0"}, {"of": "int", "label": "x1"}, {"of": "int", "label": "y1"}], "note": "one segment per round"}, "display": {"width": 32, "height": 24}, "constraints": ["`0 \u2264 x0, x1 < 32`, `0 \u2264 y0, y1 < 24` \u2014 endpoints are always on the display", "at most 20 rounds per test case"]}
 Scoring: footprint-tick  (score = max(width,height)^2 * avgTicks, lower is better)
-Constraints: `2 ≤ N, M, K ≤ 16` — dimensions, vary per test case; `-99 ≤ a, b ≤ 99` — entries of A and B
+Constraints: `0 ≤ x0, x1 < 32`, `0 ≤ y0, y1 < 24` — endpoints are always on the display; at most 20 rounds per test case
 
 Sample public cases:
-  [2x2 warm up] in=['2', '2', '2', '1', '2', '3', '4', '5', '6', '7', '8'] -> out=['19', '22', '43', '50']
-  [non-square 2x3x2] in=['2', '3', '2', '1', '0', '-1', '2', '3', '1', '4', '5', '6', '7', '8', '9'] -> out=['-4', '-4', '34', '40']
-  [identity] in=['4', '4', '4', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16', '1', '0', '0', '0', '0', '1', '0', '0', '0', '0', '1', '0', '0', '0', '0', '1'] -> out=['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16']
+  [main diagonal] in=['0', '0', '31', '23'] -> out=[]
+  [three rounds] in=['4', '20', '27', '3'] -> out=[]
+  [three rounds] in=['2', '2', '29', '2'] -> out=[]
+  [one pixel] in=['9', '5', '9', '5'] -> out=[]
 
 === WHAT I WANT BACK ===
 Work out the algorithm in prose first, then give the finished grid as a single fenced code block with exact spacing (every line padded to the same width). Remember only A and B are readable (BP is write-only and branch-only), so extra state must live in pipes used as FIFOs or as a rotatable two-room ring.

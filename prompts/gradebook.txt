@@ -113,29 +113,41 @@ Packet Reassembly 20/20, Sudoku Auditor 20/20. So the language is expressive eno
 the difficulty is bookkeeping, not missing primitives.
 
 === YOUR TASK ===
-Problem: Matrix Multiply (slug matmul)
+Problem: Grade Book (slug gradebook)
 
-Multiply two matrices.
+Process operations over student grades across several subjects.
 
-An `R×C` matrix is a 2D array of numbers with `R` rows and `C` columns.
-Matrices in this problem are *row-major* — row 0 in full, then row 1, and so on
-until row `R-1`.
+A grade book tracks `N` students across `K` subjects. Subjects are numbered
+`1` through `K`. A student record is a unique `id` followed by one grade per
+subject, in subject order: `id g1 g2 ... gK`. [Round
+1](/grading#round-based) provides `N K`, then the `N` student records.
 
-Each test case will provide three integers: `N`, `M`, `K`, and then two
-matrices `A` and `B`. `A` will be `N×M` and `B` will be `M×K`. You
-should multiply `A` and `B` and output `C`, an `N×K` matrix.
+An operation is an integer `op` naming an action to perform, followed by that
+action's arguments. Rounds 2 and beyond provide a
+count `O` and then `O` operations. Your program should process each operation
+in order, outputting data as it is requested.
 
-Matrix multiplication works as follows: `C[i][j]` should be the sum of
-`A[i][t] × B[t][j]` where `t` goes from `0` to `M-1`.
+There are 4 operations, so `op` is between `1` and `4`. The operations are:
+* **`GET (op=1)`** - `1 id s` - output student `id`'s grade in subject `s`
+* **`SET (op=2)`** - `2 id s v` - set student `id`'s grade in subject `s` to `v`
+* **`AVG (op=3)`** - `3 s` - output the average grade in subject `s` rounded down
+* **`TOP (op=4)`** - `4 s` - output the `id` of the student with the highest grade in subject `s`
 
-I/O spec: {"input": {"seq": [{"label": "N", "of": "int"}, {"label": "M", "of": "int"}, {"label": "K", "of": "int"}, {"label": "A", "note": "row-major", "of": {"count": {"*": ["N", "M"]}, "of": "int"}}, {"label": "B", "note": "row-major", "of": {"count": {"*": ["M", "K"]}, "of": "int"}}]}, "output": {"label": "C", "note": "row-major", "of": {"count": {"*": ["N", "K"]}, "of": "int"}}, "definitions": {"A": "N\u00d7M matrix \u2014 row-major", "B": "M\u00d7K matrix \u2014 row-major", "C": "N\u00d7K matrix \u2014 row-major"}, "constraints": ["`2 \u2264 N, M, K \u2264 16` \u2014 dimensions, vary per test case"
+Your program does not need to output anything for `SET` operations. If multiple
+students are tied for the highest grade in a subject, `TOP` should return the
+smallest such student id.
+
+I/O spec: {"input": {"of": {"repeat": "int"}, "note": "Round 1 is the roster: `N K`, then the `N` student records `id g1 ... gK` back-to-back. Every later round is a batch: a count `O`, then `O` operations back-to-back."}, "output": {"of": {"repeat": "int"}, "note": "A round's output is its GET/AVG/TOP replies, in operation order. The roster round and SET operations produce no output."}, "constraints": ["`4 \u2264 N \u2264 16` \u2014 students", "`1 \u2264 K \u2264 4` \u2014 subjects", "student ids distinct, `1000 \u2264 id \u2264 9999`, not dense, not sorted", "`0 \u2264 g \u2264 100` \u2014 grades, ini
 Scoring: footprint-tick  (score = max(width,height)^2 * avgTicks, lower is better)
-Constraints: `2 ≤ N, M, K ≤ 16` — dimensions, vary per test case; `-99 ≤ a, b ≤ 99` — entries of A and B
+Constraints: `4 ≤ N ≤ 16` — students; `1 ≤ K ≤ 4` — subjects; student ids distinct, `1000 ≤ id ≤ 9999`, not dense, not sorted; `0 ≤ g ≤ 100` — grades, initial or set; every operation references an existing id and a subject in `1..K`; 1–10 batch rounds per test case, 1–8 operations per batch; one roster per test case (no reload)
 
 Sample public cases:
-  [2x2 warm up] in=['2', '2', '2', '1', '2', '3', '4', '5', '6', '7', '8'] -> out=['19', '22', '43', '50']
-  [non-square 2x3x2] in=['2', '3', '2', '1', '0', '-1', '2', '3', '1', '4', '5', '6', '7', '8', '9'] -> out=['-4', '-4', '34', '40']
-  [identity] in=['4', '4', '4', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16', '1', '0', '0', '0', '0', '1', '0', '0', '0', '0', '1', '0', '0', '0', '0', '1'] -> out=['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16']
+  [tiny roster walkthrough] in=['4', '1', '1222', '51', '2774', '23', '8603', '44', '2303', '76'] -> out=[]
+  [tiny roster walkthrough] in=['2', '1', '1222', '1', '1', '2774', '1'] -> out=['51', '23']
+  [TOP demotion] in=['5', '1', '7099', '24', '6818', '39', '6935', '79', '3928', '78', '1455', '45'] -> out=[]
+  [TOP demotion] in=['2', '2', '6935', '1', '69', '4', '1'] -> out=['3928']
+  [tie-break] in=['6', '2', '9091', '59', '50', '3820', '63', '68', '9523', '28', '32', '3890', '83', '3', '8927', '65', '12', '7697', '63', '23'] -> out=[]
+  [tie-break] in=['4', '2', '3820', '1', '88', '2', '8927', '1', '88', '2', '9523', '1', '60', '4', '1'] -> out=['3820']
 
 === WHAT I WANT BACK ===
 Work out the algorithm in prose first, then give the finished grid as a single fenced code block with exact spacing (every line padded to the same width). Remember only A and B are readable (BP is write-only and branch-only), so extra state must live in pipes used as FIFOs or as a rotatable two-room ring.

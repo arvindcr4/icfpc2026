@@ -90,6 +90,22 @@ Get it **correct first**, then square it up. A correct big program beats a beaut
 - **Encode a stack in one integer** when the alphabet is small: push = `A*k + item`,
   pop = `%k` then `/k`. 64 bits holds 31 items at k=4.
 
+## The LM-75 display (needed only for display problems)
+
+A display is a special room drawn with `+` corners, `:` vertical walls, `=` horizontal walls.
+Max interior 64x64. It is driven entirely by which SIDE a pipe attaches to:
+
+* **Top pipe = ADDR.** Write `row*width + column` to move the cursor. Out-of-range is an error.
+* **Left pipe = DATA.** Write a colour 0..15 to paint the pixel at the cursor, then the cursor
+  advances (next column, else next row, else back to top-left). Any other value is an error.
+* **Bottom pipe = SWAP.** Write `0` to copy next->current, clear next and reset the cursor;
+  write `1` to copy next->current but keep the cursor and next. Any other value is an error.
+
+Attaching two pipes to one side, a pipe to the right side, or a pipe to a corner is a load error.
+Within a tick the display processes ADDR, then DATA, then SWAP. Cursor starts at 0,0; both
+buffers start colour 0 (black).
+
+
 === A WORKING EXAMPLE (accepted 19/19) ===
 Triangle: read n, output n(n+1)/2 as (n*n + n) >> 1.
 
@@ -113,29 +129,57 @@ Packet Reassembly 20/20, Sudoku Auditor 20/20. So the language is expressive eno
 the difficulty is bookkeeping, not missing primitives.
 
 === YOUR TASK ===
-Problem: Matrix Multiply (slug matmul)
+Problem: Snake (slug snake)
 
-Multiply two matrices.
+Simulate a game of ["Snake"](https://en.wikipedia.org/wiki/Snake_%28video_game_genre%29)
+and draw it on a display.
 
-An `R×C` matrix is a 2D array of numbers with `R` rows and `C` columns.
-Matrices in this problem are *row-major* — row 0 in full, then row 1, and so on
-until row `R-1`.
+In Snake, a player steers a line (the snake) as it grows and turns. The game
+runs on a 16x16 grid: the top-left corner is `0,0`, x grows right, y grows
+down.
 
-Each test case will provide three integers: `N`, `M`, `K`, and then two
-matrices `A` and `B`. `A` will be `N×M` and `B` will be `M×K`. You
-should multiply `A` and `B` and output `C`, an `N×K` matrix.
+Data is provided in [rounds](/grading#round-based). The first round is `sx sy`,
+the snake's starting position: a single cell, moving *right*. Commit a frame
+showing it. Every later round is one of:
 
-Matrix multiplication works as follows: `C[i][j]` should be the sum of
-`A[i][t] × B[t][j]` where `t` goes from `0` to `M-1`.
+* **Fruit spawn:** `1 fx fy`. A fruit spawns at `fx fy`; the game does not
+  tick. Commit a new frame.
+* **Direction change:** `2/3/4/5`. The snake's direction is set to
+  `up/right/down/left` respectively from the next tick on. The game does not tick.
+  Do not commit a new frame.
+* **Tick:** `0`. Advance the game one tick (explained below). Commit a new frame.
 
-I/O spec: {"input": {"seq": [{"label": "N", "of": "int"}, {"label": "M", "of": "int"}, {"label": "K", "of": "int"}, {"label": "A", "note": "row-major", "of": {"count": {"*": ["N", "M"]}, "of": "int"}}, {"label": "B", "note": "row-major", "of": {"count": {"*": ["M", "K"]}, "of": "int"}}]}, "output": {"label": "C", "note": "row-major", "of": {"count": {"*": ["N", "K"]}, "of": "int"}}, "definitions": {"A": "N\u00d7M matrix \u2014 row-major", "B": "M\u00d7K matrix \u2014 row-major", "C": "N\u00d7K matrix \u2014 row-major"}, "constraints": ["`2 \u2264 N, M, K \u2264 16` \u2014 dimensions, vary per test case"
+On each tick the head advances one cell in the snake's current direction:
+* Landing on a fruit **grows** the snake — the tail stays put, the fruit
+  disappears.
+* Otherwise the tail moves **before** the head (moving to where the tail just
+  was is legal).
+* If the head would land off the grid or on a cell the snake still occupies,
+  the player loses and the test case ends. The snake does not move (draw it
+  where it was before the tick).
+
+At most one fruit is on the board at a time; fruit always appears in an empty
+cell. You will receive at most one direction change between consecutive ticks,
+and a direction change never reverses the snake (you will not receive `down`
+while the snake moves `up`).
+
+**To draw this game to the [display](/grading#displays):**
+* If the game is ongoing, draw the snake in **green (color 10)**
+* If the game has ended, draw the snake in **red (color 9)**
+* Draw fruit in **red (color 9)**
+* Other cells should be left **black (color 0)**.
+
+I/O spec: {"input": {"of": {"repeat": "int"}, "note": "the first round is the starting head position sx sy; every later round is a fruit spawn `1 fx fy`, a direction change `2`/`3`/`4`/`5` (up/right/down/left), or a clock tick `0`"}, "display": {"width": 16, "height": 16}, "constraints": ["`0 \u2264 x < 16`, `0 \u2264 y < 16`", "At most 100 rounds per test case (including the starting round)."]}
 Scoring: footprint-tick  (score = max(width,height)^2 * avgTicks, lower is better)
-Constraints: `2 ≤ N, M, K ≤ 16` — dimensions, vary per test case; `-99 ≤ a, b ≤ 99` — entries of A and B
+Constraints: `0 ≤ x < 16`, `0 ≤ y < 16`; At most 100 rounds per test case (including the starting round).
 
 Sample public cases:
-  [2x2 warm up] in=['2', '2', '2', '1', '2', '3', '4', '5', '6', '7', '8'] -> out=['19', '22', '43', '50']
-  [non-square 2x3x2] in=['2', '3', '2', '1', '0', '-1', '2', '3', '1', '4', '5', '6', '7', '8', '9'] -> out=['-4', '-4', '34', '40']
-  [identity] in=['4', '4', '4', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16', '1', '0', '0', '0', '0', '1', '0', '0', '0', '0', '1', '0', '0', '0', '0', '1'] -> out=['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16']
+  [first bites] in=['4', '8'] -> out=[]
+  [first bites] in=['0'] -> out=[]
+  [game over at the wall] in=['12', '3'] -> out=[]
+  [game over at the wall] in=['0'] -> out=[]
+  [full circle] in=['3', '5'] -> out=[]
+  [full circle] in=['1', '4', '5'] -> out=[]
 
 === WHAT I WANT BACK ===
 Work out the algorithm in prose first, then give the finished grid as a single fenced code block with exact spacing (every line padded to the same width). Remember only A and B are readable (BP is write-only and branch-only), so extra state must live in pipes used as FIFOs or as a rotatable two-room ring.

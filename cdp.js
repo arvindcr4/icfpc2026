@@ -102,7 +102,11 @@ async function main() {
     // focus the composer
     await evalOn(sock, `(() => { const e = document.querySelector('#prompt-textarea') ||
         document.querySelector('div[contenteditable="true"]'); if(!e) return 'no composer';
-        e.focus(); return 'focused'; })()`, false);
+        e.focus();
+        const sel = window.getSelection(); const r = document.createRange();
+        r.selectNodeContents(e); sel.removeAllRanges(); sel.addRange(r);
+        document.execCommand('delete');
+        return 'focused+cleared'; })()`, false);
     await sleep(400);
     // Input.insertText produces a trusted-looking input event; plain .value/.textContent
     // assignment is ignored by ProseMirror composers.
