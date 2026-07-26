@@ -11,16 +11,16 @@ def make_row(spec_dict):
 
 # Room A (rows 6..12):
 # Inside Room A is x=1..37! x=0 and x=38 are '|' walls!
-# Shift W b W on col 37 to rows 9,10,11 so Phase 1 finish entering at (37,9) executes W b W in full!
-# r12 has 1 W - M b!
+# r12 has 36:'1' so 1 W - M b executes in full!
+# r11 has 36:'<' so Phase 2 Output path goes left on row 11 to Round Reset!
 
-r6  = make_row({2:'>', 3:'@', 4:'r', 5:'M', 6:'b', 7:'v', 34:'>', 36:'>', 37:'v'})
-r7  = make_row({1:'v', 7:'<', 33:'v', 34:'a', 35:'<', 36:'v', 37:'v'})
-r8  = make_row({1:'r', 31:'>', 34:'r', 35:'^', 36:'s', 37:'v'}) # 36:'s' for Output Pipe!
-r9  = make_row({1:'>', 33:'s', 35:'a', 36:'>', 37:'W'}) # 37:'W' start of W b W!
-r10 = make_row({1:'^', 31:'^', 33:'<', 34:'^', 36:'<', 37:'b'}) # 37:'b' middle of W b W!
-r11 = make_row({31:'^', 36:'<', 37:'W'}) # 37:'W' end of W b W!
-r12 = make_row({2:'^', 31:'^', 32:'b', 33:'M', 34:'-', 35:'W', 36:'1', 37:'d'}) # 37:'d' branch!
+r6  = make_row({2:'>', 3:'@', 4:'r', 5:'M', 6:'b', 7:'v', 34:'>', 36:'v'})
+r7  = make_row({1:'v', 7:'<', 33:'v', 34:'a', 35:'<', 36:'s', 37:'v'}) # 36:'s' Output Pipe!
+r8  = make_row({1:'r', 31:'>', 34:'r', 35:'^', 36:'>', 37:'v'}) # 37:'v' turns Phase 1 finish DOWN col 37!
+r9  = make_row({1:'>', 33:'s', 34:'m', 35:'a', 36:'^', 37:'W'}) # 37:'W' start of W b W!
+r10 = make_row({1:'^', 31:'^', 33:'<', 34:'^', 36:'v', 37:'b'}) # 37:'b' middle of W b W!
+r11 = make_row({2:'^', 31:'^', 36:'<', 37:'W'}) # 36:'<' goes left to Round Reset! 37:'W' end of W b W!
+r12 = make_row({2:'^', 31:'^', 32:'b', 33:'M', 34:'-', 35:'W', 36:'1', 37:'d'}) # 36:'1' for 1 W - M b!
 
 room_A = [r6, r7, r8, r9, r10, r11, r12]
 
