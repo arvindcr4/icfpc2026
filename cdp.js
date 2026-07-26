@@ -75,6 +75,27 @@ async function main() {
 
   if (cmd === 'eval') {
     console.log(JSON.stringify(await evalOn(sock, b), null, 1));
+  } else if (cmd === 'submit') {
+    // b = "<problemId>:<file>"; the program text is read here in Node and shipped over
+    // CDP, so it never has to be pasted into a prompt.
+    const fs = require('fs');
+    const [pid, file] = b.split(':');
+    const prog = fs.readFileSync(file, 'utf8');
+    const res = await evalOn(sock, `(async () => {
+      const r = await fetch('/api/v1/submissions', { method:'POST',
+        headers:{'Authorization':'Bearer ${process.env.ICFP_KEY}','Content-Type':'application/json'},
+        body: JSON.stringify({problemId:${JSON.stringify(pid)}, program:${JSON.stringify(prog)}}) });
+      return r.status + ' :: ' + (await r.text()).slice(0,200);
+    })()`);
+    console.log('len=' + prog.length, '::', res);
+  } else if (cmd === 'poll') {
+    const res = await evalOn(sock, `(async () => {
+      const r = await fetch('/api/v1/submissions/${b}', {headers:{'Authorization':'Bearer ${process.env.ICFP_KEY}'}});
+      const j = await r.json();
+      return j.status+' | '+(j.output||j.loadError||'')+' | passed='+j.casesPassed+'/'+j.casesTotal+
+             ' score='+j.score+' area2='+j.area2+' ticks='+j.avgTicks;
+    })()`);
+    console.log(res);
   } else if (cmd === 'ask') {
     const fs = require('fs');
     const text = fs.readFileSync(b, 'utf8');
