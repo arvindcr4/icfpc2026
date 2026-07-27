@@ -130,3 +130,24 @@ Get it **correct first**, then square it up. A correct big program beats a beaut
 | agy6 | Sudoku Auditor | `sudoku-validity` | `sudoku.man` |
 | agy7 | Matrix Multiply | `matmul` | `matmul.man` |
 | agy8 | Subset Sum | `subset-sum` | `subsetsum.man` |
+
+## Display rooms are drawn with '=' and ':' (not '-' and '|')
+
+An LM-75 display room uses `+` corners like any room, but `=` for its horizontal borders and
+`:` for its vertical ones. Confirmed against the **accepted** plotter (20/20) and snake (17/17)
+programs, both of which contain those glyphs.
+
+This matters because a simulator that only knows `-`/`|` treats a display border as an ordinary
+cell and then rejects every pipe that legitimately reaches the display:
+
+    LoadError: pipe from (233,606) hit ':' at (270,606)
+
+That error is a **false positive**. Do not "fix" the pipe — sim.py now accepts both border sets.
+Also note sim.py has no frame rendering, so for a display problem it can only prove the program
+*loads*; `got=[] want=[]` passing 10/10 means nothing. Those must be judged by the real judge.
+
+## Hard limits the judge enforces
+
+- **Program size**: a 28 MB grid (2,213 x 12,834) was rejected outright with
+  `413 payload_too_large`. Keep grids to a few hundred cells on the long side — which the score
+  formula wants anyway.
