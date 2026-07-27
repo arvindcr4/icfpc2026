@@ -1,0 +1,30 @@
+Big improvement: little-little-man_v5.man scored 14 of 28, up from 6. The judge's exact wording:
+
+    Passed all 14 public tests
+    Failed 14 of 14 private tests (10 wrong-frames, 4 step-cap)
+
+So your interpreter is correct on every case you can see, and wrong on every case you cannot.
+That is a generalisation problem, not a logic-from-scratch problem — and the judge even tells us
+how it fails. Two distinct causes:
+
+  * **10 wrong-frames** — the display contents differ from expected on inputs outside the public
+    set. Think about what the public cases happen NOT to exercise: the full W,H range (4..16 in
+    both dimensions, including non-square and maximum-size programs), all three rooms being used,
+    two pipes rather than one, `H` halting for some men while others keep running, a man hitting
+    a wall (whole program freezes, that tick still completes for everyone), negative values in A
+    or B, and values at the -9..9 pipe extremes. Any assumption baked in from the public cases —
+    a fixed W, a single room, one pipe, men never blocking — will show up as exactly this.
+
+  * **4 step-cap** — four cases exceed the allowed step budget, i.e. your interpreter is too slow
+    for the largest inputs. Constraints permit up to 100 ticks per test case and 30 rounds, with
+    W,H up to 16 (256 program cells). If per-interpreted-tick cost scales with the full ring
+    length, the maximum-size programs will blow the cap. Make the common path cheaper — for
+    example avoid a full ring rotation per man per tick where a partial rotation suffices.
+
+Note your program is only 290 x 562 (163 KB), far inside the size gate, so you may spend area
+freely to buy speed. Ticks and area are both cheap; only correctness is scarce.
+
+Write the improved program to /mnt/data/little-little-man_v6.man (verbatim grid, one line per
+row, no fences, single trailing newline). Write it as soon as you have a loadable grid, then
+keep improving and rewriting it, so a truncated reply still leaves a usable file. Report what
+you changed and which behaviours you now believe are covered.

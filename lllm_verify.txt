@@ -1,0 +1,11 @@
+  ERR   one tick at a time                 LoadError: pipe from (314,506) hit ':' at (95,506)
+  ERR   first steps                        LoadError: pipe from (314,506) hit ':' at (95,506)
+  ERR   around the block                   LoadError: pipe from (314,506) hit ':' at (95,506)
+  ERR   off the edge                       LoadError: pipe from (314,506) hit ':' at (95,506)
+  ERR   widdershins                        LoadError: pipe from (314,506) hit ':' at (95,506)
+  ERR   crossroads                         LoadError: pipe from (314,506) hit ':' at (95,506)
+  ERR   revolving door                     LoadError: pipe from (314,506) hit ':' at (95,506)
+  ERR   swan dive                          LoadError: pipe from (314,506) hit ':' at (95,506)
+  ERR   hall of mirrors                    LoadError: pipe from (314,506) hit ':' at (95,506)
+  ERR   victory lap                        LoadError: pipe from (314,506) hit ':' at (95,506)
+  => 0/10 public cases pass

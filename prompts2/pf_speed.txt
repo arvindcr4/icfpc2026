@@ -1,0 +1,31 @@
+Real progress — you fixed the crash. pathfinder_v5.man was submitted to the official judge:
+
+    Failed 7 of 7 public tests (7 step-cap)
+    Failed 11 of 11 private tests (11 step-cap)
+
+Compare with the previous version, which failed every case with `wall`. There are now ZERO wall
+hits and zero load errors: your control flow is sound and the men stay inside their rooms. Every
+single failure is now `step-cap` — the program simply runs out of steps. Nothing says the answers
+are wrong; it never gets far enough to be judged on them.
+
+So the whole remaining problem is speed. Where to look:
+
+  * The grid is 4,218 x 826 (3.5 MB). Cost per interpreted step tends to scale with how much of
+    the layout a man must traverse, so a very tall grid can mean thousands of wasted ticks per
+    operation. Shortening the walked paths matters more than shrinking total area.
+  * Avoid work proportional to the whole board where a partial scan suffices — e.g. a full ring
+    rotation per cell lookup inside a loop that already runs once per cell is quadratic.
+  * The shortest path to each flag is at most 64 moves and the board is 16x16 = 256 cells, so a
+    BFS should be a few thousand elementary operations, not millions. If your step count is far
+    above that, the overhead is in the interpreter plumbing rather than the algorithm.
+  * Consider whether frames are being recomputed from scratch when an incremental update would do.
+
+For calibration: accepted programs on this contest average about 1.5 million ticks per case, and
+one accepted program is 9.4 MB, so neither ticks nor area is scarce in absolute terms — but you
+are evidently well past the per-case step budget, so the cost per interpreted step is the thing
+to attack.
+
+Please make it faster and write the result to /mnt/data/pathfinder_v6.man (verbatim grid, one
+line per row, no fences, single trailing newline). Write the file as soon as it loads and rewrite
+it as you improve. If you can measure your own worst-case step count per public case, report it —
+that tells us how much further it has to come down.

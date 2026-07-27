@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """Run a .man against the problem's real publicTestData using sim.py's engine."""
-import json, subprocess, sys, urllib.request, pathlib
+import json, os, subprocess, sys, urllib.request, pathlib
 sys.path.insert(0, '/home/claude/icfpc2026')
 import sim
+
+MAXT=int(os.environ.get('MAXT','400000'))
 
 def spec(slug):
     p = pathlib.Path(f'/home/claude/icfpc2026/spec_{slug}.json')
@@ -31,7 +33,7 @@ cs = cases(spec(slug))
 npass = 0
 for name, ins, exp in cs:
     try:
-        got, ticks, w, h = sim.run(text, ins, max_ticks=400000)
+        got, ticks, w, h = sim.run(text, ins, max_ticks=MAXT)
         ok = got == exp
         npass += ok
         print(f"  {'PASS' if ok else 'FAIL'}  {name[:34]:<34} got={got[:8]}{'...' if len(got)>8 else ''} want={exp[:8]}{'...' if len(exp)>8 else ''}")

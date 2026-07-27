@@ -1,0 +1,26 @@
+Real progress: lllm_v5.man scored 10 of 21, up from 6. The judge's exact wording:
+
+    Passed all 10 public tests
+    Failed 11 of 11 private tests (10 wrong-frames, 1 step-cap)
+
+So your interpreter is correct on every case it can see and wrong on every case it cannot. That
+is a generalisation problem, and the judge tells us the two shapes it takes:
+
+  * **10 wrong-frames** — display contents differ on inputs outside the public set. Ask what the
+    public cases never exercise. The declared constraints are:
+        ["`4 \u2264 W, H \u2264 16`", "`1 \u2264 k \u2264 64`", "at most 30 rounds and at most 200 ticks per test case", "no step commands arrive after the program halts"]
+    Input note: the first round is the LLLM program: W H, then W·H ASCII codes (row-major); every later round is one step command k
+    Anything you inferred from the public cases rather than from those constraints — a particular
+    program size, a single room, one pipe, men never blocking on a send, no man ever halting
+    while others run, no wall hit — is exactly what the private tests will probe.
+
+  * **1 step-cap** — one case exceeds the step budget, so the largest inputs are too slow. Make
+    the per-tick common path cheaper.
+
+Your grid is 390 x 420 (164 KB), far inside the size gate (9.4 MB was still accepted), so you can
+spend area freely to buy speed or clarity. Ticks are cheap too — accepted programs average 1.5
+million ticks per case. Only correctness is scarce.
+
+Write the improved program to /mnt/data/lllm_v6.man (verbatim grid, one line per row, no fences,
+single trailing newline). Write it as soon as you have a loadable grid and keep rewriting it as
+you improve, so a truncated reply still leaves a usable file. Report what you changed.

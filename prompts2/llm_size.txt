@@ -1,0 +1,22 @@
+Your little-little-man_v3.man was rejected by the judge before it ever ran:
+
+    413 payload_too_large — "Program exceeds the size limit"
+
+It is 4,607 rows x 2,468 columns (11.4 MB). Here is the size boundary I have measured against
+the real judge, so you can design to it exactly:
+
+  * 530 KB  (903 x 586)      — ACCEPTED and executed
+  * 252 KB  (455 x 553)      — ACCEPTED and executed
+  * 11.4 MB (4,607 x 2,468)  — REJECTED, payload_too_large
+  * 28.4 MB (2,213 x 12,834) — REJECTED, payload_too_large
+
+So please target well under 1 MB — roughly 1,000 x 1,000 at the very most. This is a hard gate:
+an oversized program scores nothing at all, no matter how correct it is.
+
+You also noted the ring-RAM protocol is extremely slow. Note the tick budget is generous —
+accepted programs have run 1.5 million ticks average per case — so slowness is much less of a
+problem than size. Trade ticks for area freely.
+
+Please re-emit the program within that size budget, write it to /mnt/data/little-little-man_v4.man
+(verbatim grid, one line per row, no fences, single trailing newline), and report which public
+cases pass. If you must leave behaviours unimplemented to fit, do that and say which.

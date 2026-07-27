@@ -1,0 +1,30 @@
+Please read this before doing anything else — your assessment of that file was too pessimistic.
+
+I submitted /mnt/data/subset-sum_mitm.man to the official judge anyway. The result:
+
+    Passed 19/20 test cases
+    Passed all 7 public tests
+    Failed 1 of 13 private tests (1 step-cap)
+
+So the MITM grid you called unfinished actually loads, routes, and computes correctly. Every
+public case passes and twelve of thirteen private cases pass. Exactly ONE case fails, and it
+fails on **step-cap** — it runs out of steps, not out of correctness. Nothing is wrong with the
+answer it produces; it is only too slow on the largest input.
+
+That means you are one optimisation away from a full pass. Please keep this exact program and
+make it faster. Where to look:
+
+  * the worst case is n = 20 with t near the total sum, so the meet-in-the-middle halves are both
+    at their maximum of 2^10 = 1024 sums;
+  * anything that costs a full ring rotation per candidate is the likely culprit — a rotation
+    proportional to 1024 entries inside a loop that itself runs 1024 times is ~10^6 rotations;
+  * early termination helps: once a valid subset is found and lexicographic tie-breaking is
+    satisfied, stop scanning;
+  * pruning on partial sums exceeding t, and skipping halves whose maximum sum is below t - s,
+    both cut large parts of the search;
+  * the grid is only 147 x 228 (33 KB) and the size gate is enormous by comparison (a 9.4 MB
+    program was still accepted), so you can spend as much AREA as you like to buy speed.
+
+Write the faster version to /mnt/data/subset-sum_fast.man (verbatim grid, one line per row, no
+fences, single trailing newline), and write it as soon as it is loadable so a truncated reply
+still leaves a usable file. Do not restructure what already works — only make the hot path cheaper.

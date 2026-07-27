@@ -1,0 +1,24 @@
+Understood, and thank you for not passing off an unloadable grid as finished.
+
+The blocker you reported is purely a layout collision, not an algorithmic problem:
+
+    grid conflict (4410, 8) |/-
+    the memory-worker room starting at (4410, 5) overlaps the relay room's border/pipe geometry
+
+That is the easiest class of problem to fix here, because AREA IS ESSENTIALLY FREE. Measured
+against the real judge: a 9.4 MB grid (2,921 x 3,226) was accepted and executed; only 11 MB+ was
+refused. Your current program is 163 KB. So you can simply move the memory-worker room somewhere
+with plenty of clearance rather than packing it against the relay — leave wide empty margins
+between every room and every pipe corridor, and stop optimising the layout at all.
+
+A practical way to make this class of bug impossible: have your generator place each room on a
+coarse grid of well-separated slots (say every 200 columns and every 60 rows), route pipes only
+along dedicated empty lanes between slots, and assert no two structures share a cell before
+emitting. Then a collision becomes a generator error you can see, not a load error.
+
+Please fix the collision, regenerate, and write the result to /mnt/data/little-little-man_v7.man
+(verbatim grid, one line per row, no fences, single trailing newline). Write the file as soon as
+it loads, before any further refinement.
+
+For reference, the target to beat is the current best: 14 of 28, which passed all 14 public tests
+and failed all 14 private ones (10 wrong-frames, 4 step-cap).

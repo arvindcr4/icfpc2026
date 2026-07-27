@@ -1,0 +1,8 @@
+  PASS  tiny warm up                       got=[5, 35598, 41872, 96540, 10035, 64505] want=[5, 35598, 41872, 96540, 10035, 64505]
+  PASS  multiple solutions, lex pin        got=[2, 120, 180] want=[2, 120, 180]
+  PASS  no solution                        got=[0] want=[0]
+  PASS  single-element subset              got=[1, 62554] want=[1, 62554]
+  PASS  last-index-required                got=[1, 16687] want=[1, 16687]
+  PASS  duplicate values                   got=[2, 500, 500] want=[2, 500, 500]
+  FAIL  near-total-sum, 20 values          got=[] want=[11, 58443, 79693, 15450, 57084, 20590, 13454, 91581]...
+  => 6/7 public cases pass

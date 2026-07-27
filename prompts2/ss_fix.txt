@@ -1,0 +1,22 @@
+Your subset-sum_final.man was submitted to the official judge.
+
+RESULT: 16 of 20 test cases passed. Better than the previous attempt (10/20), but not accepted.
+
+The likely cause: you validated six public cases but NOT the seventh, which is the largest one.
+There are seven public cases, and the one you skipped is `near-total-sum, 20 values` with n=20 —
+the maximum. The constraints are `10 <= n <= 20`, `1 <= v <= 99999`, `100 < t < 1000000`. Four
+hidden failures out of twenty is consistent with the largest-n cases timing out or overflowing.
+
+Here is that case in full so you can test it directly:
+
+  in  = ["20", "58443", "79693", "37155", "15450", "57084", "20590", "29841", "13454", "91581", "60485", "36863", "169", "33749", "20147", "72090", "52216", "92490", "97963", "96043", "90230", "633441"]
+  out = ["11", "58443", "79693", "15450", "57084", "20590", "13454", "91581", "36863", "72090", "97963", "90230"]
+
+Please make the program handle n = 20 correctly and within the tick budget, keeping the six
+cases that already pass. If your search is exponential in n, 2^20 subset enumerations may simply
+be too slow — consider meet-in-the-middle over two halves of 10, or any approach that keeps the
+required lexicographic tie-breaking intact.
+
+Write the corrected program to /mnt/data/subset-sum_v3.man (verbatim grid, one line per row, no
+fences, single trailing newline) and report the result for ALL SEVEN public cases, including the
+n=20 one. If n=20 cannot be made to fit, say so plainly and explain what the limit is.

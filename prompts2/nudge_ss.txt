@@ -1,0 +1,8 @@
+Your run stopped before producing a final answer — no grid and no file were written.
+
+Please finish now. Use the design you already worked out, write the complete program to
+/mnt/data/subset-sum_final.man (verbatim grid, one line per row, no markdown fences, single
+trailing newline), and reply with just the row/column count and which public cases pass.
+
+If the design is not finished, write whatever your best current grid is to that path anyway
+and state plainly which parts are incomplete. Do not restart the analysis from scratch.

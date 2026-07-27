@@ -1,0 +1,13 @@
+[13:29:35] little-little-little-man: FINISHED but no program found (ansLen=1272)
+[13:55:59] pathfinder: FINISHED but no program found (ansLen=0)
+[14:14:14] subset-sum: harvested 33662 chars -> subset-sum.man; verifying
+[14:17:48] subset-sum: VERIFY   => 5/7 public cases pass
+[14:41:56] little-little-man: FINISHED but no program found (ansLen=2277)
+[14:53:58] matmul: FINISHED but no program found (ansLen=0)
+[14:53:58] ALL RUNS RESOLVED: {
+ "little-little-little-man": "no-program",
+ "pathfinder": "no-program",
+ "subset-sum": "  => 5/7 public cases pass",
+ "little-little-man": "no-program",
+ "matmul": "no-program"
+}

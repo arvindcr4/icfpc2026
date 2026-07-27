@@ -1,0 +1,26 @@
+Careful — that rewrite went backwards. little-little-man_v8.man scored:
+
+    Failed 14 of 14 public tests (14 wrong-frames)
+    Failed 14 of 14 private tests (14 wrong-frames)
+    0/28
+
+The previous version, little-little-man_v5.man (290 x 562), scored 14/28 by passing ALL 14 public
+tests. So v8 broke behaviour that v5 had correct. No load errors and no step-caps this time, so
+the machine runs — it just renders the wrong frames everywhere now, including on cases that used
+to pass. (Good news: the contest keeps each team's BEST score, so nothing was lost; but this
+direction is not working.)
+
+Please go back to the v5 design as the baseline — the one that passes all 14 public cases — and
+change it only where random testing proves it wrong. Concretely:
+
+  1. Restore or regenerate the v5 behaviour and confirm it still passes all 14 public cases in
+     your own simulator before changing anything else.
+  2. Then use the reference implementation and random program generator as a DIAGNOSTIC only:
+     find a minimal random program where v5's frames differ from the reference, and study that one
+     case. Fix that single discrepancy. Re-run the public cases to confirm no regression. Repeat.
+  3. Never ship a version that fails a public case — that is now a hard invariant, and it would
+     have caught this rewrite immediately.
+
+Small, verified steps from a known-good 14/28 will beat another ground-up redesign. Write the
+result to /mnt/data/little-little-man_v9.man (verbatim grid, one line per row, no fences, single
+trailing newline), and tell me its public-case count before I submit it.

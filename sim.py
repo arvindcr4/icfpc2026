@@ -43,6 +43,14 @@ def load_grid(text):
     return [list(l.ljust(w)) for l in lines], w, len(lines)
 
 
+# Ordinary rooms are drawn with '-' and '|'. LM-75 DISPLAY rooms use '=' and ':' for the same
+# job — confirmed against the accepted plotter and snake programs, both of which draw their
+# display that way. Treating ':'/'=' as ordinary cells makes every pipe that legitimately
+# reaches a display report a bogus "pipe hit ':'" load error.
+HBORD = ('-', '=')
+VBORD = ('|', ':')
+
+
 def find_rooms(g, w, h):
     """Return list of rooms as (x0,y0,x1,y1) inclusive borders."""
     rooms = []
@@ -50,10 +58,10 @@ def find_rooms(g, w, h):
         for x in range(w):
             if g[y][x] != '+':
                 continue
-            # top-left corner? scan right along '-' to another '+'
+            # top-left corner? scan right along a horizontal border to another '+'
             x1 = None
             for xx in range(x + 1, w):
-                if g[y][xx] == '-':
+                if g[y][xx] in HBORD:
                     continue
                 if g[y][xx] == '+':
                     x1 = xx
@@ -62,7 +70,7 @@ def find_rooms(g, w, h):
                 continue
             y1 = None
             for yy in range(y + 1, h):
-                if g[yy][x] == '|':
+                if g[yy][x] in VBORD:
                     continue
                 if g[yy][x] == '+':
                     y1 = yy
@@ -71,8 +79,8 @@ def find_rooms(g, w, h):
                 continue
             if g[y1][x1] != '+':
                 continue
-            ok = all(g[y1][xx] == '-' for xx in range(x + 1, x1)) and \
-                 all(g[yy][x1] == '|' for yy in range(y + 1, y1))
+            ok = all(g[y1][xx] in HBORD for xx in range(x + 1, x1)) and \
+                 all(g[yy][x1] in VBORD for yy in range(y + 1, y1))
             if not ok:
                 continue
             if any(r[0] <= x and x <= r[2] and r[1] <= y <= r[3] for r in rooms):

@@ -1,0 +1,239 @@
+Here is a puzzle in a small 2D grid language called Littleman, used by the ICFP Programming Contest 2026. It is NOT a language you know - the complete spec is below and is verified against the real judge, so trust it over your priors.
+
+=== LANGUAGE SPEC ===
+## The language
+
+Grid of ASCII. Rooms are rectangles of `+` `-` `|`. A little man `@` spawns inside a room
+**facing right**, executes the cell under him each tick, then steps one cell. Hitting a room
+border is a fatal `wall` error. Registers: `A` main hand, `B` off hand, `BP` backpack — all
+signed 64-bit, all starting 0. `BP` is **write-only**: you can branch on it, never read it.
+
+| | |
+|---|---|
+| `0`–`9` | `A` = digit |
+| `` `123` `` | literal; loads on the **closing** backtick. Walked backwards it reads backwards. Spaces inside are ignored |
+| `M` / `W` | `B = A` / swap `A,B` |
+| `+ - * / % N` | `A = A op B`; `/` floors and puts the **remainder in B**; `N` negates |
+| `& \| ~ { }` | and, or, xor, `A<<B`, `A>>B` (arithmetic) |
+| `> < ^ v` | set direction |
+| `X` | turn by sign(A): right if >0, left if <0, straight if 0. `A` unchanged |
+| `b m d a ] x` | `BP=A`; `BP-=1`; turn right/left if `BP>0`; `BP>>=1`; `x` turns right if low bit set else left |
+| `q` | `BP` = number of values in the nearest incoming pipe |
+| `s S` | send `A` to nearest / every outgoing pipe (blocks if full) |
+| `r R U` | receive into `A` from nearest / any incoming pipe; `U` also turns away from that side |
+| `Y` | split into two men moving perpendicular; both inherit `A,B,BP` |
+| `H` `.` space | halt; nop; nop |
+
+I/O rooms are 3×3 holding a single `I` or `O`, each with exactly one pipe.
+Input arrives one value per tick into the input pipe's source cell.
+
+## Pipes — read this twice, it cost us a whole submission
+
+A pipe **must start with an arrowhead whose backward cell is on the source room's border**,
+and **ends at the first arrowhead whose forward cell is on another room's border**.
+
+- `>>` — shortest legal pipe (2 cells, arrowheads at both ends).
+- `--->` — **NOT A PIPE.** It starts with a body glyph. The program loads clean and then every
+  test dies `no-pipe`.
+- Body glyphs must match direction (`-` horizontal, `|` vertical); every bend is an arrowhead
+  pointing the new way; the terminal arrowhead doubles as the final bend.
+
+`s`/`r`/`q` use the **nearest** pipe by Manhattan distance from the instruction to the pipe
+segment touching your room, ties broken in reading order. `R`/`U` take from any ready pipe.
+
+## Backticks pair down COLUMNS as well as along rows
+
+Within a column they pair top-to-bottom, 1st-2nd, 3rd-4th. **A non-digit between a vertical
+pair is a load error** — this killed a program that was otherwise perfect:
+
+```
+expected a digit or a space between backticks, but found 's' at (2, 2)
+```
+
+If you lay literals in a grid, either keep backtick columns identical on every row (pad tokens
+so they are symmetric, e.g. `` ` `NNN`s `` ` has backticks at offsets 1 and 5 **both** walked
+left-to-right and right-to-left), or keep only spaces/digits between vertical pairs.
+`sim.py` enforces this rule, so trust it.
+
+## Scoring — layout matters more than instruction count
+
+`score = max(width, height)² × avgTicks`, **lower is better**, and every case must pass.
+Problems marked `footprint` ignore ticks entirely.
+
+The bounding box dominates. Our Triangle went **5819 → 1500** with the *same ten instructions*,
+purely by folding a flat 23×3 line into a 7×10 snake with the I/O rooms side by side:
+
+```
++-+ +-+
+|I| |O|
++-+ +-+
+ v   ^
+ v   ^
++-----+
+|@rM*v|
+|v1W+<|
+|>W}sH|
++-----+
+```
+
+Get it **correct first**, then square it up. A correct big program beats a beautiful broken one.
+
+## Useful patterns
+
+- **No third register.** With only `A` and `B` readable, a loop that needs a constant *and* an
+  accumulator *and* a temp needs external storage — use a pipe to a helper room as memory,
+  or restructure the arithmetic. Triangle avoids a division entirely by computing
+  `(n²+n) >> 1`, parking the `1` in `B` with two `W` swaps.
+- **Pipes are FIFO queues** and hold one value per cell — a long pipe is a delay line and a
+  bounded buffer. A ring of two rooms joined by pipes both ways is a rotatable store.
+- **`BP` is a loop counter**: `b` to set, `m` to decrement, `d`/`a` to branch while positive.
+- **Encode a stack in one integer** when the alphabet is small: push = `A*k + item`,
+  pop = `%k` then `/k`. 64 bits holds 31 items at k=4.
+
+## The LM-75 display (needed only for display problems)
+
+A display is a special room drawn with `+` corners, `:` vertical walls, `=` horizontal walls.
+Max interior 64x64. It is driven entirely by which SIDE a pipe attaches to:
+
+* **Top pipe = ADDR.** Write `row*width + column` to move the cursor. Out-of-range is an error.
+* **Left pipe = DATA.** Write a colour 0..15 to paint the pixel at the cursor, then the cursor
+  advances (next column, else next row, else back to top-left). Any other value is an error.
+* **Bottom pipe = SWAP.** Write `0` to copy next->current, clear next and reset the cursor;
+  write `1` to copy next->current but keep the cursor and next. Any other value is an error.
+
+Attaching two pipes to one side, a pipe to the right side, or a pipe to a corner is a load error.
+Within a tick the display processes ADDR, then DATA, then SWAP. Cursor starts at 0,0; both
+buffers start colour 0 (black).
+
+
+=== A WORKING EXAMPLE (accepted 19/19) ===
+Triangle: read n, output n(n+1)/2 as (n*n + n) >> 1.
+
++-+ +-+
+|I| |O|
++-+ +-+
+ v   ^
+ v   ^
++-----+
+|@rM*v|
+|v1W+<|
+|>W}sH|
++-----+
+
+Walk order r M * + W 1 W } s H. The man enters at @ heading right; running onto v turns him down, < turns him west, and so on. The two W swaps park the constant 1 in B for the shift, because loading a literal always lands in A.
+
+=== EVIDENCE THIS IS TRACTABLE ===
+Using exactly this spec, seven problems have already been accepted by the judge:
+Triangle 19/19, History Lesson 1/1, Reverse a List 20/20, Sort 25/25, Brackets 26/26,
+Packet Reassembly 20/20, Sudoku Auditor 20/20. So the language is expressive enough;
+the difficulty is bookkeeping, not missing primitives.
+
+=== YOUR TASK ===
+Problem: LLM (slug little-little-man)
+
+Interpret an LLM program and show its state on a display.
+
+## The LLM Language
+
+Little little man (LLM) is a simple subset of the littleman language that
+you have learned during this course. *All valid LLM programs are valid littleman
+programs*. This problem will not recap the basics of littleman programs;
+consult the [textbook](/textbook), [language
+reference](/language-reference), and [editor](/editor) if you're confused.
+
+An LLM program is a grid containing one or more rooms potentially connected
+with pipes. Each room holds a single `@` representing a little man. The `@`
+moves with the man: the cell where he started is ordinary empty space, and
+walking back over it does nothing. Rooms and pipes are drawn exactly as in
+littleman.
+
+The full set of operations in the LLM language is:
+- `^` `>` `v` `<` — set heading to N / E / S / W
+- `0`–`9` — `A = n`
+- `M` — `B = A`
+- `+` — `A = A + B`
+- `-` — `A = A - B`
+- `X` — turn clockwise if `A > 0`, counterclockwise if `A < 0`, don't turn if `A = 0`
+- `s` — send `A` into the nearest outgoing pipe
+- `r` — receive a value into `A` from the nearest incoming pipe
+- `H` — halt: the man stays on the `H` forever while the other men keep running
+
+## Ticks and halting
+
+On each tick every man executes the operation he is standing on (if applicable)
+and *then* advances in his current direction. All men act on every tick.
+
+The program halts when every man has halted on an `H` — or the moment any man
+hits a wall: the whole program stops and every man freezes where he stands,
+including the man on the wall cell. The tick in which a man steps onto a wall
+completes in full — every other man still executes and moves on that tick —
+and then everything freezes. (This differs from littleman, where hitting a
+wall is an error.)
+
+**The programs you receive will be well-formed:** rooms and pipes parse, every
+room has a single `@` inside, and `s` and `r` are only ever executed in a room
+that has a pipe in the required direction. Other characters will either be
+spaces or valid operations.
+
+## Pipes
+
+Each pipe cell holds at most one value. On every tick, before the men act,
+every value in a pipe advances one cell toward its destination if the next
+cell is free.
+
+**Every value sent into a pipe is between `-9` and `9`.**
+
+- `s` writes `A` into the pipe's first cell (the arrowhead leaving the
+  sender's room). If that cell is occupied, the man **blocks**: he stays on
+  the `s`, retrying every tick, and only moves on once the send succeeds.
+- `r` takes the value in the pipe's last cell (the arrowhead entering the
+  receiver's room). If no value has arrived yet, the man blocks on the `r`
+  the same way.
+- When a room has more than one pipe in the relevant direction, `s` and `r`
+  use the **nearest** pipe: the one whose arrowhead at this room is closest
+  to the man's current cell by Manhattan distance. On an exact tie, the
+  arrowhead earliest in reading order (top-to-bottom, then left-to-right)
+  wins.
+
+Because pipes move before the men act, a value that arrives at the pipe's
+last cell on some tick can be received by an `r` that same tick — and a man
+blocked on `s` against a full pipe sends on the tick *after* the receiver's
+pop makes room.
+
+## Drawing
+
+Draw the LLM program with its top-left corner at the top-left corner of your
+[display](/grading#displays). Your display will be 16x16; if your LLM program
+is smaller than that leave the pixels outside of the program black.
+
+You should use color `9` (bright red) to represent the 
+
+I/O spec: {"input": {"of": {"repeat": "int"}, "note": "the first round is the LLM program: W H, then W\u00b7H ASCII codes (row-major); every later round is one step command k"}, "display": {"width": 16, "height": 16}, "constraints": ["`4 \u2264 W, H \u2264 16`", "`1 \u2264 k \u2264 64`", "at most 3 rooms and at most 2 pipes per program", "at most 20 total pipe cells per program", "at most 30 rounds and at most 100 ticks per test case", "no step commands arrive after the program halts", "every value sent into a pipe is between `-9` and `9`"]}
+Scoring: footprint-tick  (score = max(width,height)^2 * avgTicks, lower is better)
+Constraints: `4 ≤ W, H ≤ 16`; `1 ≤ k ≤ 64`; at most 3 rooms and at most 2 pipes per program; at most 20 total pipe cells per program; at most 30 rounds and at most 100 ticks per test case; no step commands arrive after the program halts; every value sent into a pipe is between `-9` and `9`
+
+Sample public cases:
+  [first steps] in=['4', '4', '43', '45', '45', '43', '124', '64', '118', '124', '124', '32', '72', '124', '43', '45', '45', '43'] -> out=[]
+  [first steps] in=['1'] -> out=[]
+  [countdown relay] in=['13', '11', '43', '45', '45', '45', '45', '45', '45', '45', '45', '45', '45', '45', '43', '124', '64', '49', '77', '52', '62', '45', '115', '88', '57', '72', '32', '124', '124', '32', '32', '32', '32', '32', '32', '32', '32', '32', '32', '32', '124', '124', '32', '32', '32', '32', '94', '32', '32', -> out=[]
+  [countdown relay] in=['2'] -> out=[]
+  [hello neighbor] in=['16', '5', '43', '45', '45', '45', '45', '45', '43', '32', '32', '32', '43', '45', '45', '45', '45', '43', '124', '64', '51', '115', '72', '32', '124', '32', '32', '32', '124', '64', '114', '88', '32', '124', '124', '32', '32', '32', '32', '32', '124', '62', '45', '62', '124', '32', '32', '72', '32 -> out=[]
+  [hello neighbor] in=['1'] -> out=[]
+
+=== WHAT I WANT BACK ===
+Work out the algorithm in prose first, then give the finished grid as a single fenced code block with exact spacing (every line padded to the same width). Remember only A and B are readable (BP is write-only and branch-only), so extra state must live in pipes used as FIFOs or as a rotatable two-room ring.
+
+Be rigorous about these, the usual causes of failure:
+  * a pipe must START with an arrowhead whose backward cell touches the source room border and END at an arrowhead whose forward cell touches another room border; '--->' is not a pipe.
+  * backticks pair down COLUMNS as well as along rows; a non-digit between a vertical pair is a load error.
+  * walking into a room border kills the man instantly.
+
+If you cannot finish a correct grid, say exactly where you got stuck instead of presenting an untested one.
+DELIVERY (important): do NOT paste the grid into the chat — chat rendering strips the
+trailing spaces that the grid needs. Instead write the finished program with python to
+exactly this path: /mnt/data/little-little-man.man
+Write it verbatim, one line per grid row, no markdown fences, no line numbers, no extra
+blank line at the end beyond a single trailing newline. Then reply with a short summary and
+the row/column count. Build a simulator in python and test every public case before writing
+the file. If you cannot get all public cases passing, still write your best attempt to that
+path and say plainly which cases fail.

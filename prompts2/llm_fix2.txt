@@ -1,0 +1,19 @@
+Good progress: little-little-man_v4.man was accepted by the judge as a valid program and RAN.
+
+RESULT: 6 of 28 test cases passed. It is 299 x 289 (87 KB), comfortably inside the size gate,
+so size is no longer a concern at all — you have room to spare, and ticks are cheap (accepted
+programs average 1.5 million ticks per case). Spend both freely on correctness.
+
+The remaining work is purely behavioural. Please use the complete public test data I gave you
+earlier — each round's `in` and its expected 16x16 `frames` — and debug against it case by case
+in your own simulator. Typical places these interpreters go wrong:
+  * opcode dispatch for the rarer operations (X turning by sign of A, M, +, -),
+  * the exact tick order: every man executes, THEN advances; pipe values advance BEFORE the men act,
+  * blocking semantics for `s` when the pipe's first cell is occupied, and `r` when empty,
+  * halting: the program stops the moment ANY man hits a wall, and that tick still completes in
+    full for every other man, with everyone frozen in place afterwards,
+  * the display frame being rendered at the right moment in the round.
+
+Write the improved program to /mnt/data/little-little-man_v5.man (verbatim grid, one line per
+row, no fences, single trailing newline). Report which public cases pass now. Getting from 6/28
+to a larger number is real progress even if you cannot reach all of them — report honestly.

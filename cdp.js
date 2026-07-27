@@ -73,7 +73,10 @@ async function main() {
   await send(sock, 'Runtime.enable');
   await send(sock, 'Page.enable');
 
-  if (cmd === 'eval') {
+  if (cmd === 'evalfile') {
+    const fs = require('fs');
+    console.log(JSON.stringify(await evalOn(sock, fs.readFileSync(b, 'utf8')), null, 1));
+  } else if (cmd === 'eval') {
     console.log(JSON.stringify(await evalOn(sock, b), null, 1));
   } else if (cmd === 'submit') {
     // b = "<problemId>:<file>"; the program text is read here in Node and shipped over
@@ -122,6 +125,17 @@ async function main() {
       });
     }
     await sleep(1500);
+    // After a page reload the composer ignores the Enter key, leaving the text typed but
+    // unsent — silently losing the message. Fall back to clicking the send button.
+    const still = await evalOn(sock, `(() => { const e = document.querySelector('#prompt-textarea') ||
+        document.querySelector('div[contenteditable="true"]'); return e ? (e.innerText||'').length : 0; })()`, false);
+    if (still > 50) {
+      const r = await evalOn(sock, `(() => { const b = document.querySelector('[data-testid="send-button"]') ||
+          [...document.querySelectorAll('button')].find(x => /send/i.test(x.getAttribute('aria-label')||''));
+          if (!b) return 'no send button'; if (b.disabled) return 'send DISABLED'; b.click(); return 'clicked send'; })()`, false);
+      console.log('enter did not send (' + still + ' chars left):', r);
+      await sleep(2000);
+    }
     console.log('sent; url now:', await evalOn(sock, 'location.href', false));
   }
   sock.close();

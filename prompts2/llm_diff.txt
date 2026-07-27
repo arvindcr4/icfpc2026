@@ -1,0 +1,40 @@
+Let us change tactics, because the scoreboard says the current one has run out of road.
+
+Best result so far, from the judge:
+
+    Passed 14/28
+    Passed all 14 public tests
+    Failed 14 of 14 private tests (10 wrong-frames, 4 step-cap)
+
+The interpreter is correct on every case it can see and wrong on every case it cannot. Further
+hand-checking of the public cases cannot help — they already all pass. This is purely a
+generalisation problem, so please attack it with differential testing rather than more design:
+
+  1. Write a reference implementation of the LLM language semantics in plain Python — simple and
+     obviously correct, no cleverness.
+  2. Write a random LLM-program generator that samples the WHOLE declared constraint space rather
+     than the shapes the public cases happen to use:
+         ["`4 \u2264 W, H \u2264 16`", "`1 \u2264 k \u2264 64`", "at most 3 rooms and at most 2 pipes per program", "at most 20 total pipe cells per program", "at most 30 rounds and at most 100 ticks per test case", "no step commands arrive after the program halts", "every value sent into a pipe is between `-9` and `9`"]
+     Deliberately hit the awkward corners: minimum and maximum W and H, non-square programs, the
+     maximum of 3 rooms and 2 pipes, the full 20-cell pipe budget, men blocking on `s` when the
+     pipe's first cell is occupied and on `r` when it is empty, some men halting on `H` while
+     others keep running, a man hitting a wall (whole program freezes, that tick still completes
+     for everyone), negative A/B values, and pipe values at the -9 and +9 extremes.
+  3. Write a simulator for the OUTER littleman language too, so you can execute your generated
+     .man grid directly.
+  4. Run both over a few hundred random programs and diff the 16x16 display frames tick by tick.
+     Each mismatch reproduces one of the 10 wrong-frames failures locally, where you can debug it.
+  5. Fix, regenerate, repeat until random testing is clean.
+
+The 4 step-cap failures are a separate, smaller problem: the largest inputs exceed the step
+budget, so make the per-interpreted-tick common path cheaper — avoid work proportional to the
+whole program ring where a partial scan would do.
+
+Reminders measured against the real judge: area is nearly free (a 9.4 MB grid was accepted; only
+11 MB+ refused) and ticks are cheap (accepted programs average 1.5 million per case). Your
+program is 290 x 562, so there is plenty of headroom for both. Leave generous margins between
+rooms and pipe lanes so the layout collision you hit last time cannot recur.
+
+DELIVERY: /mnt/data/little-little-man_v8.man — verbatim grid, one line per row, no fences, single
+trailing newline. Write it as soon as it loads and rewrite it as you improve. Report what your
+random testing found.
